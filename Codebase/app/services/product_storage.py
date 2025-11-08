@@ -234,34 +234,42 @@ class ProductStorageService:
             return result[0]
 
         # Default scores (can be improved with actual data)
+        # Tuple: (recyclability, recycling_rate, biodegradability, transport, env_score, adjustment, co2_per_kg)
         scores = {
-            'cardboard': (95, 62, 100, 95, 87, 10),
-            'paper': (95, 62, 100, 95, 87, 10),
-            'plastic': (15, 9, 0, 95, 23, -15),
-            'glass': (100, 31, 0, 20, 51, 0),
-            'aluminum': (100, 50, 0, 90, 68, 5),
-            'metal': (100, 50, 0, 90, 68, 5),
+            'cardboard': (95, 62, 100, 95, 87, 10, 0.7),
+            'paper': (95, 62, 100, 95, 87, 10, 0.5),
+            'plastic': (15, 9, 0, 95, 23, -15, 4.0),
+            'pet': (85, 29, 5, 95, 28, -8, 3.5),
+            'hdpe': (80, 28, 5, 95, 26, -10, 2.8),
+            'glass': (100, 31, 0, 20, 51, 0, 0.9),
+            'aluminum': (100, 50, 0, 90, 68, 5, 8.5),
+            'aluminium': (100, 50, 0, 90, 68, 5, 8.5),
+            'metal': (100, 50, 0, 90, 68, 5, 6.0),
+            'steel': (100, 45, 0, 88, 65, 3, 2.0),
+            'tin': (100, 45, 0, 88, 65, 3, 2.2),
         }
 
         # Get scores or use defaults
         material_key = slug.lower()
+        co2_per_kg = None
         for key in scores:
             if key in material_key:
-                recyclability, recycling_rate, biodegradability, transport, env_score, adjustment = scores[key]
+                recyclability, recycling_rate, biodegradability, transport, env_score, adjustment, co2_per_kg = scores[key]
                 break
         else:
             # Default moderate scores
             recyclability, recycling_rate, biodegradability, transport, env_score, adjustment = (50, 25, 10, 75, 40, -5)
+            co2_per_kg = 3.0  # Default moderate CO2 emissions
 
         cursor.execute(
             """INSERT INTO packaging_materials
                (tag, name, slug, recyclability_score, recycling_rate_pct,
                 biodegradability_score, transport_impact_score,
-                environmental_score, score_adjustment)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                environmental_score, score_adjustment, production_kg_co2_per_kg)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                RETURNING id""",
             (tag, name, slug, recyclability, recycling_rate,
-             biodegradability, transport, env_score, adjustment)
+             biodegradability, transport, env_score, adjustment, co2_per_kg)
         )
         return cursor.fetchone()[0]
 

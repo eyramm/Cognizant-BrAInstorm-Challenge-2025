@@ -1,0 +1,56 @@
+version: 1.0
+runtime: python312
+build:
+  commands:
+    pre-build:
+      - echo "Installing dependencies..."
+      - cd Codebase
+      - pip3 install --upgrade pip
+    build:
+      - pip3 install -r requirements.txt
+    post-build:
+      - echo "Build completed successfully"
+
+run:
+  runtime-version: 3.12
+  pre-run:
+    # Database migrations run in pre-run for revised build
+    - |
+      if [ -n "$DATABASE_URL" ]; then
+        cd Codebase
+        psql $DATABASE_URL -f app/schema.sql || echo "Schema migration failed or already exists"
+        psql $DATABASE_URL -f app/data/seed_emission_factors.sql || echo "Seed emission factors skipped"
+        psql $DATABASE_URL -f app/data/seed_packaging_materials.sql || echo "Seed packaging materials skipped"
+      else
+        echo "DATABASE_URL not set, skipping migrations"
+      fi
+  command: cd Codebase && gunicorn --bind 0.0.0.0:8080 --workers 4 --timeout 120 wsgi:app
+  network:
+    port: 8080
+    env: 0.0.0.0
+  env:
+    - name: PYTHONUNBUFFERED
+      value: "1"
+
+  # All configuration loaded from AWS Secrets Manager
+  secrets:
+    - name: FLASK_APP
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:FLASK_APP::"
+    - name: FLASK_ENV
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:FLASK_ENV::"
+    - name: FLASK_DEBUG
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:FLASK_DEBUG::"
+    - name: DATABASE_URL
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:DATABASE_URL::"
+    - name: DB_POOL_SIZE
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:DB_POOL_SIZE::"
+    - name: DB_TIMEOUT
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:DB_TIMEOUT::"
+    - name: OFF_BASE_URL
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:OFF_BASE_URL::"
+    - name: OFF_API_TIMEOUT
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:OFF_API_TIMEOUT::"
+    - name: DEFAULT_STORE_LAT
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:DEFAULT_STORE_LAT::"
+    - name: DEFAULT_STORE_LON
+      value-from: "arn:aws:secretsmanager:us-east-1:136582438400:secret:cognizant-xlZ0hU:DEFAULT_STORE_LON::"

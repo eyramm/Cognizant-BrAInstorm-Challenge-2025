@@ -52,4 +52,8 @@ Endpoints:
 - All runtime configuration now lives in `.env`. Update the sample values there (e.g., `DATABASE_URL`).
 - `OFF_BASE_URL` configures which Open Food Facts instance we call (defaults to `https://world.openfoodfacts.org/api/v2/product`); override it in `.env` if you need a different environment.
 - Run `flask init-db` whenever the schema changes to keep Postgres in sync before ingesting Open Food Facts data.
+- Seed the ingredient emission factors used by the Raw Materials score:
+  ```bash
+  psql -d ecoapp -f app/data/seed_emission_factors.sql
+  ```
 - Flask automatically loads `.env` because `python-dotenv` is installed; no manual `export` commands needed.
