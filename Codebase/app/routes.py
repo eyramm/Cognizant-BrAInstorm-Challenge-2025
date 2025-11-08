@@ -4,6 +4,7 @@ import asyncio
 from .db import get_connection
 from .services.open_food_facts import OpenFoodFactsService
 from .services.product_storage import ProductStorageService
+from .workflows.product_scan_workflow import execute_product_scan_workflow
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -36,8 +37,17 @@ def db_ping():
 @api_bp.get("/products/<barcode>")
 def get_product(barcode: str):
     """
-    Get product information - checks database first, then fetches from Open Food Facts if needed
-    Returns limited fields: brand, product_name, primary_category, quantity, upc, manufacturing_places
+    Get product information using the complete workflow:
+    1. Check database
+    2. Fetch from API if needed
+    3. Update database
+    4. Calculate scores
+    5. Find similar products
+    6. Make recommendations
+
+    Query params:
+        - full=true: Return complete workflow results (scores, recommendations)
+        - full=false (default): Return basic product info only
     """
     try:
         if not barcode.isdigit():
@@ -46,74 +56,73 @@ def get_product(barcode: str):
                 "message": "Invalid barcode format. Must contain only digits."
             }), 400
 
-        conn = get_connection()
+        # Check if full workflow requested
+        full_workflow = request.args.get('full', 'false').lower() == 'true'
 
-        # Step 1: Check if product exists in our database (check multiple UPC formats)
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """SELECT p.id, p.upc, p.product_name, m.name as brand,
-                          p.quantity, p.manufacturing_places,
-                          c.name as primary_category
-                   FROM products p
-                   LEFT JOIN manufacturers m ON p.brand_id = m.id
-                   LEFT JOIN product_categories pc ON p.id = pc.product_id AND pc.is_primary = TRUE
-                   LEFT JOIN categories c ON pc.category_id = c.id
-                   WHERE p.upc = %s OR p.upc = %s""",
-                (barcode, barcode.zfill(13))
-            )
-            existing_product = cursor.fetchone()
+        if full_workflow:
+            # Execute complete workflow with scores and recommendations
+            result = execute_product_scan_workflow(barcode)
+            return jsonify(result)
+        else:
+            # Quick response - just product info
+            conn = get_connection()
 
-        if existing_product:
-            # Product exists in database - return limited fields
-            current_app.logger.info(f"Product {barcode} found in database")
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT p.id, p.upc, p.product_name, m.name as brand,
+                              p.quantity, p.manufacturing_places,
+                              c.name as primary_category
+                       FROM products p
+                       LEFT JOIN manufacturers m ON p.brand_id = m.id
+                       LEFT JOIN product_categories pc ON p.id = pc.product_id AND pc.is_primary = TRUE
+                       LEFT JOIN categories c ON pc.category_id = c.id
+                       WHERE p.upc = %s OR p.upc = %s""",
+                    (barcode, barcode.zfill(13))
+                )
+                existing_product = cursor.fetchone()
+
+            if existing_product:
+                return jsonify({
+                    "status": "success",
+                    "source": "database",
+                    "data": {
+                        "upc": existing_product[1],
+                        "product_name": existing_product[2],
+                        "brand": existing_product[3],
+                        "quantity": existing_product[4],
+                        "manufacturing_places": existing_product[5],
+                        "primary_category": existing_product[6]
+                    }
+                })
+
+            # Not in database - fetch and save
+            off_product = asyncio.run(OpenFoodFactsService.fetch_product(barcode))
+
+            if not off_product:
+                return jsonify({
+                    "status": "not_found",
+                    "message": f"Product with barcode {barcode} not found."
+                }), 404
+
+            try:
+                ProductStorageService.save_product(conn, off_product)
+            except Exception:
+                conn.rollback()
+
+            product_info = OpenFoodFactsService.extract_basic_info(off_product)
 
             return jsonify({
                 "status": "success",
-                "source": "database",
+                "source": "open_food_facts",
                 "data": {
-                    "upc": existing_product[1],
-                    "product_name": existing_product[2],
-                    "brand": existing_product[3],
-                    "quantity": existing_product[4],
-                    "manufacturing_places": existing_product[5],
-                    "primary_category": existing_product[6]
+                    "upc": product_info.get('upc'),
+                    "product_name": product_info.get('product_name'),
+                    "brand": product_info.get('brand'),
+                    "quantity": product_info.get('quantity'),
+                    "manufacturing_places": product_info.get('manufacturing_places'),
+                    "primary_category": product_info.get('primary_category')
                 }
             })
-
-        # Step 2: Product not in database - fetch from Open Food Facts
-        current_app.logger.info(f"Product {barcode} not found in database, fetching from Open Food Facts")
-
-        off_product = asyncio.run(OpenFoodFactsService.fetch_product(barcode))
-
-        if not off_product:
-            return jsonify({
-                "status": "not_found",
-                "message": f"Product with barcode {barcode} not found in Open Food Facts database."
-            }), 404
-
-        # Step 3: Save to database
-        try:
-            product_id = ProductStorageService.save_product(conn, off_product)
-            current_app.logger.info(f"Saved new product {barcode} with ID {product_id}")
-        except Exception as db_exc:
-            conn.rollback()
-            current_app.logger.exception(f"Error saving product {barcode} to database")
-
-        # Step 4: Extract limited info from OFF data
-        product_info = OpenFoodFactsService.extract_basic_info(off_product)
-
-        return jsonify({
-            "status": "success",
-            "source": "open_food_facts",
-            "data": {
-                "upc": product_info.get('upc'),
-                "product_name": product_info.get('product_name'),
-                "brand": product_info.get('brand'),
-                "quantity": product_info.get('quantity'),
-                "manufacturing_places": product_info.get('manufacturing_places'),
-                "primary_category": product_info.get('primary_category')
-            }
-        })
 
     except Exception as exc:
         current_app.logger.exception(f"Error fetching product {barcode}")
