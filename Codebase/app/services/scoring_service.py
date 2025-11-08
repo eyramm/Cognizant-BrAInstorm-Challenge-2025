@@ -513,3 +513,148 @@ class ScoringService:
         # This can be enhanced later with product category analysis
 
         return score
+
+    @classmethod
+    def calculate_climate_efficiency_score(cls, product_id: int) -> Dict[str, Any]:
+        """
+        Calculate climate efficiency score for a product (range: -10 to +10 points).
+
+        Measures CO2 emissions per 100 calories to ensure fair comparison between
+        energy-dense and low-calorie foods.
+
+        Formula: CO2 per 100 cal = (Total CO2 kg/kg) / (kcal per 100g) × 1000
+
+        Score ranges:
+        - < 0.3 kg CO2/100 cal (Excellent): +10 points
+        - 0.3 - 0.6 (Very Good): +7 points
+        - 0.6 - 1.0 (Good): +5 points
+        - 1.0 - 2.0 (Moderate): 0 points
+        - 2.0 - 4.0 (Poor): -3 points
+        - 4.0 - 7.0 (Very Poor): -7 points
+        - > 7.0 (Extremely Poor): -10 points
+
+        Args:
+            product_id: Product ID
+
+        Returns:
+            Dictionary with score, efficiency metrics, and confidence
+        """
+        conn = get_connection()
+
+        # Get nutritional data
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """SELECT calories_100g, protein_100g
+                   FROM nutriments WHERE product_id = %s""",
+                (product_id,),
+            )
+            nutriment_row = cursor.fetchone()
+
+        if not nutriment_row or nutriment_row[0] is None:
+            return {
+                "points": 0,
+                "status": "no_nutritional_data",
+                "message": "No calorie information available",
+                "confidence": "none",
+            }
+
+        calories_100g = float(nutriment_row[0])
+        protein_100g = float(nutriment_row[1]) if nutriment_row[1] is not None else 0
+
+        # Validate calories (must be positive)
+        if calories_100g <= 0:
+            return {
+                "points": 0,
+                "status": "invalid_calories",
+                "message": "Invalid calorie data (zero or negative)",
+                "confidence": "none",
+            }
+
+        # Get total CO2 from raw materials calculation
+        raw_materials_result = cls.calculate_raw_materials_score(product_id)
+
+        if raw_materials_result.get("total_co2_kg") is None:
+            return {
+                "points": 0,
+                "status": "no_co2_data",
+                "message": "Cannot calculate efficiency without CO2 data",
+                "confidence": "none",
+            }
+
+        total_co2_kg = raw_materials_result["total_co2_kg"]
+
+        # Calculate climate efficiency: kg CO2 per 100 calories
+        # Formula: (kg CO2/kg product) / (kcal/100g) × 1000
+        climate_efficiency = (total_co2_kg / calories_100g) * 1000
+
+        # Calculate protein efficiency if high protein product (>10g/100g)
+        protein_efficiency = None
+        if protein_100g > 10:
+            # kg CO2 per 100g protein
+            protein_efficiency = (total_co2_kg / protein_100g) * 100
+
+        # Assign score based on climate efficiency
+        score = cls._climate_efficiency_to_points(climate_efficiency)
+
+        # Determine confidence based on underlying data quality
+        raw_materials_confidence = raw_materials_result.get("confidence", "low")
+
+        return {
+            "points": score,
+            "co2_per_100_calories": round(climate_efficiency, 4),
+            "co2_per_100g_protein": round(protein_efficiency, 4) if protein_efficiency else None,
+            "calories_100g": calories_100g,
+            "protein_100g": protein_100g if protein_100g > 0 else None,
+            "total_co2_kg": total_co2_kg,
+            "efficiency_rating": cls._get_efficiency_rating(climate_efficiency),
+            "confidence": raw_materials_confidence,
+            "data_quality": {
+                "has_calories": True,
+                "has_protein": protein_100g > 0,
+                "has_co2_data": True,
+            }
+        }
+
+    @staticmethod
+    def _climate_efficiency_to_points(co2_per_100_cal: float) -> int:
+        """
+        Convert climate efficiency (kg CO2 per 100 calories) to score points.
+
+        Args:
+            co2_per_100_cal: CO2 emissions per 100 calories
+
+        Returns:
+            Score points (-10 to +10)
+        """
+        if co2_per_100_cal < 0.3:
+            return 10  # Excellent
+        elif co2_per_100_cal < 0.6:
+            return 7   # Very Good
+        elif co2_per_100_cal < 1.0:
+            return 5   # Good
+        elif co2_per_100_cal < 2.0:
+            return 0   # Moderate
+        elif co2_per_100_cal < 4.0:
+            return -3  # Poor
+        elif co2_per_100_cal < 7.0:
+            return -7  # Very Poor
+        else:
+            return -10 # Extremely Poor
+
+    @staticmethod
+    def _get_efficiency_rating(co2_per_100_cal: float) -> str:
+        """Get human-readable efficiency rating."""
+        if co2_per_100_cal < 0.3:
+            return "Excellent"
+        elif co2_per_100_cal < 0.6:
+            return "Very Good"
+        elif co2_per_100_cal < 1.0:
+            return "Good"
+        elif co2_per_100_cal < 2.0:
+            return "Moderate"
+        elif co2_per_100_cal < 4.0:
+            return "Poor"
+        elif co2_per_100_cal < 7.0:
+            return "Very Poor"
+        else:
+            return "Extremely Poor"

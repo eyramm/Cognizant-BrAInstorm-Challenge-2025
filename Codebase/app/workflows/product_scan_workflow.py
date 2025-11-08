@@ -192,8 +192,13 @@ class ProductScanWorkflow:
         transportation_points = transportation.get("points")
         transportation_points_value = transportation_points if isinstance(transportation_points, (int, float)) else 0
 
-        # Calculate total points from all implemented metrics
-        total_points = raw_points_value + packaging_points_value + transportation_points_value
+        # Calculate climate efficiency score
+        climate_efficiency = ScoringService.calculate_climate_efficiency_score(self.product_id)
+        climate_points = climate_efficiency.get("points")
+        climate_points_value = climate_points if isinstance(climate_points, (int, float)) else 0
+
+        # Calculate total points from all implemented metrics (4 metrics)
+        total_points = raw_points_value + packaging_points_value + transportation_points_value + climate_points_value
         final_score = max(0, min(100, 50 + total_points))
 
         if final_score >= 80:
@@ -239,6 +244,20 @@ class ProductScanWorkflow:
                 "co2_kg": transportation.get("co2_kg"),
                 "confidence": transportation.get("confidence")
             }
+
+        # Only include climate efficiency if implemented
+        if climate_points is not None and climate_efficiency.get("status") not in ["no_nutritional_data", "invalid_calories", "no_co2_data"]:
+            scores["metrics"]["climate_efficiency"] = {
+                "score": climate_points,
+                "co2_per_100_calories": climate_efficiency.get("co2_per_100_calories"),
+                "calories_100g": climate_efficiency.get("calories_100g"),
+                "efficiency_rating": climate_efficiency.get("efficiency_rating"),
+                "confidence": climate_efficiency.get("confidence")
+            }
+            # Optional: include protein efficiency if available
+            if climate_efficiency.get("co2_per_100g_protein") is not None:
+                scores["metrics"]["climate_efficiency"]["co2_per_100g_protein"] = climate_efficiency.get("co2_per_100g_protein")
+                scores["metrics"]["climate_efficiency"]["protein_100g"] = climate_efficiency.get("protein_100g")
 
         return scores
 
