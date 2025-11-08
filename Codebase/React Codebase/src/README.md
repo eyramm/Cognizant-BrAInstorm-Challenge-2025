@@ -1,4 +1,4 @@
-# Eco Product Scanner - React App
+#React App
 
 A React application for displaying eco-friendly products with sustainability ratings, cart functionality, and wishlist features.
 
