@@ -22,7 +22,7 @@ build:
         fi
 
 run:
-  runtime-version: 3.9
+  runtime-version: 3.12
   command: cd Codebase && gunicorn --bind 0.0.0.0:8080 --workers 4 --timeout 120 wsgi:app
   network:
     port: 8080
