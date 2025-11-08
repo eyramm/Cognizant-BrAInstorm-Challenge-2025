@@ -32,6 +32,7 @@ class OpenFoodFactsService:
         'categories_tags',
         'food_groups_tags',
         'nova_group',
+        'ingredients',           # Structured ingredients array with percentages
         'ingredients_text',
         'ingredients_tags',
         'allergens_tags',
