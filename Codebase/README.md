@@ -29,6 +29,23 @@ Endpoints:
 - `GET /health`
 - `GET /api/echo?message=hi`
 - `GET /api/db/ping`
+- `GET /api/products/<upc>` – returns brand, product name, primary category, quantity, UPC, and manufacturing location. Example:
+
+```json
+{
+  "status": "success",
+  "source": "database",
+  "data": {
+    "brand": "Sample Foods",
+    "name": "Organic Wheat Crackers",
+    "product_name": "Organic Wheat Crackers",
+    "primary_category": "Crackers",
+    "quantity": "560 g",
+    "upc": "0064100238220",
+    "manufacturing_places": "Mississauga, Ontario"
+  }
+}
+```
 
 ## Database
 
