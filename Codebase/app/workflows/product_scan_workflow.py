@@ -25,7 +25,9 @@ class ProductScanWorkflow:
     6. Make recommendations
     """
 
-    def __init__(self, barcode: str):
+    def __init__(self, barcode: str, user_lat: Optional[float] = None, user_lon: Optional[float] = None):
+        from flask import current_app
+
         self.barcode = barcode
         self.product_id = None
         self.product_data = None
@@ -33,6 +35,9 @@ class ProductScanWorkflow:
         self.scores = None
         self.similar_products = []
         self.recommendations = []
+        # Default to configured store location if coordinates not provided
+        self.user_lat = user_lat if user_lat is not None else current_app.config['DEFAULT_STORE_LAT']
+        self.user_lon = user_lon if user_lon is not None else current_app.config['DEFAULT_STORE_LON']
 
     def execute(self) -> Dict[str, Any]:
         """
@@ -178,8 +183,17 @@ class ProductScanWorkflow:
         packaging_points = packaging.get("points")
         packaging_points_value = packaging_points if isinstance(packaging_points, (int, float)) else 0
 
+        # Calculate transportation score with user location
+        transportation = ScoringService.calculate_transportation_score(
+            self.product_id,
+            user_lat=self.user_lat,
+            user_lon=self.user_lon
+        )
+        transportation_points = transportation.get("points")
+        transportation_points_value = transportation_points if isinstance(transportation_points, (int, float)) else 0
+
         # Calculate total points from all implemented metrics
-        total_points = raw_points_value + packaging_points_value
+        total_points = raw_points_value + packaging_points_value + transportation_points_value
         final_score = max(0, min(100, 50 + total_points))
 
         if final_score >= 80:
@@ -214,6 +228,16 @@ class ProductScanWorkflow:
                 "score": packaging_points,
                 "co2_kg_per_kg": packaging.get("total_co2_kg_per_kg"),
                 "confidence": packaging.get("confidence")
+            }
+
+        # Only include transportation if implemented
+        if transportation_points is not None and transportation.get("status") not in ["no_location_data", "geocoding_failed"]:
+            scores["metrics"]["transportation"] = {
+                "score": transportation_points,
+                "distance_km": transportation.get("distance_km"),
+                "transport_mode": transportation.get("transport_mode"),
+                "co2_kg": transportation.get("co2_kg"),
+                "confidence": transportation.get("confidence")
             }
 
         return scores
@@ -281,15 +305,21 @@ class ProductScanWorkflow:
         return recommendations
 
 
-def execute_product_scan_workflow(barcode: str) -> Dict[str, Any]:
+def execute_product_scan_workflow(
+    barcode: str,
+    user_lat: Optional[float] = None,
+    user_lon: Optional[float] = None
+) -> Dict[str, Any]:
     """
     Convenience function to execute the product scan workflow
 
     Args:
         barcode: Product UPC/barcode
+        user_lat: User/store latitude (optional, defaults to Halifax, NS)
+        user_lon: User/store longitude (optional, defaults to Halifax, NS)
 
     Returns:
         Complete workflow result with product data, scores, and recommendations
     """
-    workflow = ProductScanWorkflow(barcode)
+    workflow = ProductScanWorkflow(barcode, user_lat=user_lat, user_lon=user_lon)
     return workflow.execute()

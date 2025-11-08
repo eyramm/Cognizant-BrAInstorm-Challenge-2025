@@ -355,3 +355,161 @@ class ScoringService:
                 "material_count": len(packaging_rows),
             },
         }
+
+    @classmethod
+    def calculate_transportation_score(
+        cls,
+        product_id: int,
+        user_lat: Optional[float] = None,
+        user_lon: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Calculate transportation score for a product (range: -15 to 0 points).
+
+        Scoring is based on distance from manufacturing location to store:
+        - < 100 km (Local): 0 points (no penalty)
+        - 100-500 km (Regional): -2 points
+        - 500-2000 km (National): -5 points
+        - 2000-5000 km (Continental): -8 points
+        - > 5000 km sea: -10 points
+        - > 2000 km air (perishable): -15 points
+
+        Args:
+            product_id: Product ID
+            user_lat: User/store latitude (defaults to configured DEFAULT_STORE_LAT)
+            user_lon: User/store longitude (defaults to configured DEFAULT_STORE_LON)
+
+        Returns:
+            Dictionary with score, distance, transport mode, and CO2 emissions
+        """
+        from .geocoding_service import GeocodingService
+        from flask import current_app
+
+        # Default to configured store location if coordinates not provided
+        dest_lat = user_lat if user_lat is not None else current_app.config['DEFAULT_STORE_LAT']
+        dest_lon = user_lon if user_lon is not None else current_app.config['DEFAULT_STORE_LON']
+
+        conn = get_connection()
+
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """SELECT manufacturing_places, quantity
+                   FROM products WHERE id = %s""",
+                (product_id,),
+            )
+            product_row = cursor.fetchone()
+
+        if not product_row:
+            return {
+                "points": 0,
+                "status": "product_not_found",
+                "message": "Product not found",
+            }
+
+        manufacturing_places, quantity = product_row
+
+        # Determine manufacturing location
+        manufacturing_location = manufacturing_places
+
+        if not manufacturing_location:
+            return {
+                "points": 0,
+                "status": "no_location_data",
+                "message": "No manufacturing location available",
+                "confidence": "none",
+            }
+
+        # Geocode manufacturing location
+        origin_coords = GeocodingService.geocode(manufacturing_location)
+
+        if origin_coords is None:
+            return {
+                "points": 0,
+                "status": "geocoding_failed",
+                "message": f"Could not geocode manufacturing location: {manufacturing_location}",
+                "confidence": "none",
+            }
+
+        # Calculate distance using coordinates
+        distance_km = GeocodingService.haversine_distance(
+            origin_coords[0], origin_coords[1],
+            dest_lat, dest_lon
+        )
+
+        # Determine transport mode based on distance
+        transport_mode, emission_factor = cls._determine_transport_mode(distance_km)
+
+        # Calculate emissions (assume 1 kg product weight if not specified)
+        # TODO: Parse quantity field to extract weight in kg
+        product_weight_kg = 1.0  # Default assumption
+
+        # Emissions = distance (km) × weight (tonnes) × emission factor (kg CO2/tonne-km)
+        transport_co2 = distance_km * (product_weight_kg / 1000) * emission_factor
+
+        # Calculate score based on distance and transport mode
+        score = cls._distance_to_transportation_score(distance_km, transport_mode)
+
+        # Determine confidence
+        confidence = "medium"  # Geocoding and distance are estimates
+
+        return {
+            "points": score,
+            "distance_km": round(distance_km, 1),
+            "transport_mode": transport_mode,
+            "co2_kg": round(transport_co2, 4),
+            "manufacturing_location": manufacturing_location,
+            "destination_coords": {"lat": dest_lat, "lon": dest_lon},
+            "confidence": confidence,
+        }
+
+    @staticmethod
+    def _determine_transport_mode(distance_km: float) -> Tuple[str, float]:
+        """
+        Determine transport mode and emission factor based on distance.
+
+        Args:
+            distance_km: Distance in kilometers
+
+        Returns:
+            Tuple of (transport_mode, emission_factor_kg_co2_per_tonne_km)
+        """
+        if distance_km < 100:
+            return ("truck_local", 0.200)
+        elif distance_km < 500:
+            return ("truck_regional", 0.200)
+        elif distance_km < 2000:
+            return ("truck_national", 0.200)
+        elif distance_km < 5000:
+            return ("rail_truck", 0.100)  # Mix of rail + truck
+        else:
+            return ("sea_truck", 0.050)  # Mostly sea freight + truck
+
+    @staticmethod
+    def _distance_to_transportation_score(distance_km: float, transport_mode: str) -> int:
+        """
+        Convert distance and transport mode to score points.
+
+        Args:
+            distance_km: Distance in kilometers
+            transport_mode: Transport mode determined
+
+        Returns:
+            Score points (-15 to 0)
+        """
+        # Distance-based scoring
+        if distance_km < 100:
+            score = 0  # Local bonus
+        elif distance_km < 500:
+            score = -2  # Regional
+        elif distance_km < 2000:
+            score = -5  # National
+        elif distance_km < 5000:
+            score = -8  # Continental
+        else:
+            score = -10  # International
+
+        # Modifier for air freight (would need product category check)
+        # For now, assume no air freight unless distance > 5000 km and perishable
+        # This can be enhanced later with product category analysis
+
+        return score

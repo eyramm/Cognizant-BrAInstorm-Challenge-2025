@@ -48,6 +48,8 @@ def get_product(barcode: str):
     Query params:
         - full=true: Return complete workflow results (scores, recommendations)
         - full=false (default): Return basic product info only
+        - lat: User/store latitude (optional, defaults to Halifax, NS)
+        - lon: User/store longitude (optional, defaults to Halifax, NS)
     """
     try:
         if not barcode.isdigit():
@@ -60,8 +62,12 @@ def get_product(barcode: str):
         full_workflow = request.args.get('full', 'false').lower() == 'true'
 
         if full_workflow:
+            # Get location parameters (default to Halifax, NS if not provided)
+            lat = request.args.get('lat', type=float)
+            lon = request.args.get('lon', type=float)
+
             # Execute complete workflow with scores and recommendations
-            result = execute_product_scan_workflow(barcode)
+            result = execute_product_scan_workflow(barcode, user_lat=lat, user_lon=lon)
             return jsonify(result)
         else:
             # Quick response - just product info

@@ -22,6 +22,10 @@ class Config:
     )
     OFF_API_TIMEOUT = int(os.getenv("OFF_API_TIMEOUT", "10"))
 
+    # Default store location for transportation calculations (Halifax, NS)
+    DEFAULT_STORE_LAT = float(os.getenv("DEFAULT_STORE_LAT", "44.6488"))
+    DEFAULT_STORE_LON = float(os.getenv("DEFAULT_STORE_LON", "-63.5752"))
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
