@@ -1,9 +1,22 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def _bool_env(var_name: str, default: str = "false") -> bool:
+    return os.getenv(var_name, default).lower() == "true"
+
 
 class Config:
-    DEBUG = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    DEBUG = _bool_env("FLASK_DEBUG", "false")
     TESTING = False
+    DATABASE_URL = os.getenv(
+        "DATABASE_URL", "postgresql://eyramm@127.0.0.1/ecoapp"
+    )
+    DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
+    DB_TIMEOUT = float(os.getenv("DB_TIMEOUT", "10"))
 
 
 class DevelopmentConfig(Config):
