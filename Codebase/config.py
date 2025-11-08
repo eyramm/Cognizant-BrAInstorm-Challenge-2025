@@ -17,6 +17,10 @@ class Config:
     )
     DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
     DB_TIMEOUT = float(os.getenv("DB_TIMEOUT", "10"))
+    OFF_BASE_URL = os.getenv(
+        "OFF_BASE_URL", "https://world.openfoodfacts.org/api/v2/product"
+    )
+    OFF_API_TIMEOUT = int(os.getenv("OFF_API_TIMEOUT", "10"))
 
 
 class DevelopmentConfig(Config):
