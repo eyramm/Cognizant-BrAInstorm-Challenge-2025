@@ -33,6 +33,7 @@ pip install -r requirements.txt
 - `GET /api/products/<barcode>` - Get basic product info (includes images)
 - `GET /api/products/<barcode>?sustainability_score=true` - Get product with sustainability metrics (4 metrics: Raw Materials, Packaging, Transportation, Climate Efficiency)
   - Optional params: `lat=<latitude>`, `lon=<longitude>` for transportation calculations
+  - Optional param: `ingredients=true` to include ingredient health analysis (classifies as good/caution/harmful)
 
 ## Database
 

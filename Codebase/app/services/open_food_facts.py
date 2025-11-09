@@ -37,6 +37,7 @@ class OpenFoodFactsService:
         'ingredients_tags',
         'allergens_tags',
         'ingredients_from_palm_oil_tags',
+        'additives_tags',        # Food additive E-numbers
         'nutriments',
         'manufacturing_places',
         'origins',

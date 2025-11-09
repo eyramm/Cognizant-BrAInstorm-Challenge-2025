@@ -47,7 +47,7 @@ def get_product(barcode: str):
 
     Query params:
         - sustainability_score=true: Return complete workflow results (scores, recommendations)
-        - sustainability_score=false (default): Return basic product info only
+        - ingredients=true: Include ingredient health analysis
         - lat: User/store latitude (optional, defaults to Halifax, NS)
         - lon: User/store longitude (optional, defaults to Halifax, NS)
     """
@@ -60,6 +60,7 @@ def get_product(barcode: str):
 
         # Check if sustainability score calculation requested
         calculate_sustainability = request.args.get('sustainability_score', 'false').lower() == 'true'
+        analyze_ingredients = request.args.get('ingredients', 'false').lower() == 'true'
 
         if calculate_sustainability:
             # Get location parameters (default to Halifax, NS if not provided)
@@ -67,7 +68,12 @@ def get_product(barcode: str):
             lon = request.args.get('lon', type=float)
 
             # Execute complete workflow with scores and recommendations
-            result = execute_product_scan_workflow(barcode, user_lat=lat, user_lon=lon)
+            result = execute_product_scan_workflow(
+                barcode,
+                user_lat=lat,
+                user_lon=lon,
+                analyze_ingredients=analyze_ingredients
+            )
             return jsonify(result)
         else:
             # Quick response - just product info
@@ -90,19 +96,27 @@ def get_product(barcode: str):
                 existing_product = cursor.fetchone()
 
             if existing_product:
+                response_data = {
+                    "upc": existing_product[1],
+                    "product_name": existing_product[2],
+                    "brand": existing_product[3],
+                    "quantity": existing_product[4],
+                    "manufacturing_places": existing_product[5],
+                    "primary_category": existing_product[6],
+                    "image_url": existing_product[7],
+                    "image_small_url": existing_product[8]
+                }
+
+                # Add ingredient analysis if requested
+                if analyze_ingredients:
+                    from .services.ingredient_analysis_service import IngredientAnalysisService
+                    product_id = existing_product[0]
+                    response_data["ingredients_analysis"] = IngredientAnalysisService.analyze_ingredients(product_id)
+
                 return jsonify({
                     "status": "success",
                     "source": "database",
-                    "data": {
-                        "upc": existing_product[1],
-                        "product_name": existing_product[2],
-                        "brand": existing_product[3],
-                        "quantity": existing_product[4],
-                        "manufacturing_places": existing_product[5],
-                        "primary_category": existing_product[6],
-                        "image_url": existing_product[7],
-                        "image_small_url": existing_product[8]
-                    }
+                    "data": response_data
                 })
 
             # Not in database - fetch and save

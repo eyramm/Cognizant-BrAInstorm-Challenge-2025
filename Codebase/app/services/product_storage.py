@@ -144,7 +144,9 @@ class ProductStorageService:
     @classmethod
     def get_or_create_ingredient(cls, cursor, tag: str, vegan: Optional[str] = None,
                                  vegetarian: Optional[str] = None,
-                                 is_palm_oil: bool = False) -> int:
+                                 is_palm_oil: bool = False,
+                                 is_additive: bool = False,
+                                 additive_code: Optional[str] = None) -> int:
         """Get or create ingredient and return ID"""
         name = tag.replace('en:', '').replace('-', ' ').title()
 
@@ -157,10 +159,11 @@ class ProductStorageService:
             return result[0]
 
         cursor.execute(
-            """INSERT INTO ingredients (tag, name, vegan_status, vegetarian_status, is_from_palm_oil)
-               VALUES (%s, %s, %s, %s, %s)
+            """INSERT INTO ingredients
+               (tag, name, vegan_status, vegetarian_status, is_from_palm_oil, is_additive, additive_code)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)
                RETURNING id""",
-            (tag, name, vegan, vegetarian, is_palm_oil)
+            (tag, name, vegan, vegetarian, is_palm_oil, is_additive, additive_code)
         )
         return cursor.fetchone()[0]
 
@@ -547,6 +550,7 @@ class ProductStorageService:
             # 8. Save ingredients using UPSERT to prevent duplicates
             ingredients = off_product.get('ingredients', [])
             palm_oil_tags = off_product.get('ingredients_from_palm_oil_tags', [])
+            additives_tags = off_product.get('additives_tags', [])
 
             ingredient_ids_list = []
             for idx, ingredient in enumerate(ingredients):
@@ -555,9 +559,15 @@ class ProductStorageService:
                     vegan = ingredient.get('vegan')
                     vegetarian = ingredient.get('vegetarian')
                     is_palm = tag in palm_oil_tags
+                    is_additive = tag in additives_tags
+
+                    # Extract E-number if it's an additive
+                    additive_code = None
+                    if is_additive and tag.startswith('en:e'):
+                        additive_code = tag.replace('en:', '').upper()
 
                     ingredient_id = cls.get_or_create_ingredient(
-                        cursor, tag, vegan, vegetarian, is_palm
+                        cursor, tag, vegan, vegetarian, is_palm, is_additive, additive_code
                     )
                     ingredient_ids_list.append(ingredient_id)
 
