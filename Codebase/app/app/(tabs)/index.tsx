@@ -83,6 +83,12 @@ export default function HomeScreen() {
 
       const updated = [newScan, ...recentScans.filter(s => s.barcode !== barcode)].slice(0, 10);
       await AsyncStorage.setItem('recentScans', JSON.stringify(updated));
+
+      // Increment products scanned count
+      const scannedCount = await AsyncStorage.getItem('productsScanned');
+      const newCount = (parseInt(scannedCount || '0') + 1).toString();
+      await AsyncStorage.setItem('productsScanned', newCount);
+
       // Reload to fetch product details
       loadRecentScans();
     } catch (error) {

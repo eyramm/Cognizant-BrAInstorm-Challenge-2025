@@ -1,5 +1,5 @@
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Image, TouchableOpacity, Dimensions, Modal } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -95,6 +95,7 @@ type TabType = 'score' | 'ingredients' | 'recommendations' | 'summary';
 
 export default function ProductDetailsScreen() {
   const { barcode } = useLocalSearchParams();
+  const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [sustainabilityScores, setSustainabilityScores] = useState<SustainabilityScores | null>(null);
   const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
@@ -106,6 +107,8 @@ export default function ProductDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [tabLoading, setTabLoading] = useState<{[key in TabType]?: boolean}>({});
   const [aiSummariesEnabled, setAiSummariesEnabled] = useState(true);
+  const [selectedAlternative, setSelectedAlternative] = useState<Recommendation | null>(null);
+  const [showCongrats, setShowCongrats] = useState(false);
 
   useEffect(() => {
     loadAiSetting();
@@ -463,6 +466,27 @@ export default function ProductDetailsScreen() {
     );
   };
 
+  const handleSelectAlternative = async (rec: Recommendation) => {
+    try {
+      // Save ECO score
+      const currentScore = await AsyncStorage.getItem('ecoScore');
+      const newScore = (parseInt(currentScore || '0') + rec.score_improvement);
+      await AsyncStorage.setItem('ecoScore', newScore.toString());
+
+      // Show congratulations
+      setSelectedAlternative(rec);
+      setShowCongrats(true);
+
+      // Navigate after a delay
+      setTimeout(() => {
+        setShowCongrats(false);
+        router.push(`/product/${rec.product.upc}`);
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to save ECO score:', error);
+    }
+  };
+
   const renderRecommendationsTab = () => {
     if (tabLoading.recommendations) {
       return (
@@ -510,6 +534,14 @@ export default function ProductDetailsScreen() {
                 <Text style={styles.recScore}>{rec.sustainability_score}/100</Text>
               </View>
               <Text style={styles.recReason}>{rec.reason}</Text>
+
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => handleSelectAlternative(rec)}
+              >
+                <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
+                <Text style={styles.selectButtonText}>Choose This Alternative</Text>
+              </TouchableOpacity>
             </View>
           </View>
         ))}
@@ -562,6 +594,32 @@ export default function ProductDetailsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Congratulations Modal */}
+      <Modal
+        visible={showCongrats}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.congratsOverlay}>
+          <View style={styles.congratsCard}>
+            <MaterialCommunityIcons name="party-popper" size={80} color="#22c55e" />
+            <Text style={styles.congratsTitle}>Great Choice!</Text>
+            <Text style={styles.congratsMessage}>
+              You earned {selectedAlternative?.score_improvement} ECO points
+            </Text>
+            <Text style={styles.congratsSubtext}>
+              by choosing a more sustainable product
+            </Text>
+            <View style={styles.congratsPoints}>
+              <MaterialCommunityIcons name="leaf" size={24} color="#22c55e" />
+              <Text style={styles.congratsPointsText}>
+                +{selectedAlternative?.score_improvement} ECO points
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView style={styles.scrollView}>
         {/* Product Header */}
         {product.image_url && (
@@ -1008,6 +1066,23 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 18,
     fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  selectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#22c55e',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+    marginTop: 8,
+  },
+  selectButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   summaryText: {
     fontSize: 14,
@@ -1107,5 +1182,58 @@ const styles = StyleSheet.create({
   ingredientBadgeText: {
     fontSize: 11,
     color: '#666',
+  },
+  congratsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  congratsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 40,
+    alignItems: 'center',
+    maxWidth: 320,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  congratsTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  congratsMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  congratsSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  congratsPoints: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  congratsPointsText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#22c55e',
   },
 });
