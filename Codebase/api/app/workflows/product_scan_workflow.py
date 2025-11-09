@@ -10,6 +10,7 @@ from flask import current_app
 from ..db import get_connection
 from ..services.open_food_facts import OpenFoodFactsService
 from ..services.product_storage import ProductStorageService
+from ..utils.barcode import normalize_barcode, get_primary_barcode
 
 
 class ProductScanWorkflow:
@@ -129,9 +130,13 @@ class ProductScanWorkflow:
         """
         conn = get_connection()
 
+        # Get all possible barcode variations
+        barcode_variants = normalize_barcode(self.barcode)
+
         with conn.cursor() as cursor:
-            cursor.execute(
-                """SELECT p.id, p.upc, p.product_name, m.name as brand,
+            # Build dynamic query for all barcode variants
+            placeholders = ', '.join(['%s'] * len(barcode_variants))
+            query = f"""SELECT p.id, p.upc, p.product_name, m.name as brand,
                           p.quantity, p.manufacturing_places,
                           c.name as primary_category,
                           p.nova_group, p.ecoscore_grade, p.ecoscore_score,
@@ -142,9 +147,9 @@ class ProductScanWorkflow:
                    LEFT JOIN manufacturers m ON p.brand_id = m.id
                    LEFT JOIN product_categories pc ON p.id = pc.product_id AND pc.is_primary = TRUE
                    LEFT JOIN categories c ON pc.category_id = c.id
-                   WHERE p.upc = %s OR p.upc = %s""",
-                (self.barcode, self.barcode.zfill(13))
-            )
+                   WHERE p.upc IN ({placeholders})"""
+
+            cursor.execute(query, tuple(barcode_variants))
             result = cursor.fetchone()
 
         if result:
@@ -171,15 +176,20 @@ class ProductScanWorkflow:
         """
         Step 2: Fetch product from Open Food Facts API
         Returns raw OFF data if found, None otherwise
+
+        Note: OpenFoodFactsService.fetch_product handles barcode variant normalization internally
         """
+        # Fetch product (handles barcode variants internally)
         off_product = asyncio.run(
             OpenFoodFactsService.fetch_product(self.barcode)
         )
 
-        # Also fetch price data from Prices API
+        # Also fetch price data from Prices API if product found
         if off_product:
+            # Try to get price data using the successful barcode from the product
+            successful_barcode = off_product.get('code', self.barcode)
             price_data = asyncio.run(
-                OpenFoodFactsService.fetch_product_price(self.barcode, currency='USD')
+                OpenFoodFactsService.fetch_product_price(successful_barcode, currency='USD')
             )
             # Add price to OFF product data if available
             if price_data:

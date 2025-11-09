@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional, List
 import re
 import json
 from datetime import datetime
+from ..utils.barcode import get_primary_barcode
 
 
 class ProductStorageService:
@@ -420,7 +421,8 @@ class ProductStorageService:
                 pass
 
             # 7. Insert or update product
-            upc = off_product.get('code')
+            # Normalize barcode to EAN-13 (canonical form)
+            upc = get_primary_barcode(off_product.get('code'))
 
             # Check if product exists
             cursor.execute("SELECT id FROM products WHERE upc = %s", (upc,))

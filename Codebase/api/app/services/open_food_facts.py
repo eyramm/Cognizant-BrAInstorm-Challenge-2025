@@ -69,37 +69,65 @@ class OpenFoodFactsService:
         """
         Fetch product data from Open Food Facts API
 
+        Tries multiple barcode variants to handle UPC-A/EAN-13 differences.
+        For example, if barcode "39978328151" fails, tries "0039978328151" next.
+
         Args:
             barcode: Product UPC/barcode
 
         Returns:
             Product data dict or None if not found
         """
+        from ..utils.barcode import normalize_barcode
+
         base_url = cls.get_base_url()
-        url = f"{base_url}/api/v2/product/{barcode}.json"
         params = {'fields': ','.join(cls.REQUIRED_FIELDS)}
+
+        # Get all possible barcode variants to try
+        barcode_variants = normalize_barcode(barcode)
+        print(f"[OFF] Trying barcode variants: {barcode_variants}")
 
         try:
             timeout = cls.get_timeout()
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
-                    if response.status != 200:
-                        return None
+            headers = {'User-Agent': 'EcoApp/1.0 (Sustainability Product Scanner)'}
+            async with aiohttp.ClientSession(headers=headers) as session:
+                # Try each barcode variant until we find a match
+                for variant in barcode_variants:
+                    url = f"{base_url}/api/v2/product/{variant}.json"
 
-                    data = await response.json()
+                    async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+                        if response.status != 200:
+                            print(f"[OFF] Barcode {variant}: HTTP {response.status}")
+                            continue  # Try next variant
 
-                    # Check if product was found
-                    if data.get('status') != 1:
-                        return None
+                        data = await response.json()
 
-                    return data.get('product')
+                        # Check if product was found
+                        status = data.get('status')
+                        status_verbose = data.get('status_verbose')
+
+                        if status != 1:
+                            print(f"[OFF] Barcode {variant}: status={status}, status_verbose={status_verbose}")
+                            continue  # Try next variant
+
+                        product = data.get('product')
+                        if product:
+                            print(f"[OFF] Barcode {variant}: Found! Product name: {product.get('product_name', 'N/A')}")
+                            return product
+                        else:
+                            print(f"[OFF] Barcode {variant}: status=1 but no product data")
+                            continue  # Try next variant
+
+                # If we get here, none of the variants worked
+                print(f"[OFF] Product not found for any variant of barcode {barcode}")
+                return None
 
         except aiohttp.ClientError as e:
             # Log error but don't crash
-            print(f"Error fetching product {barcode}: {e}")
+            print(f"[OFF] Error fetching product {barcode}: {e}")
             return None
         except Exception as e:
-            print(f"Unexpected error fetching product {barcode}: {e}")
+            print(f"[OFF] Unexpected error fetching product {barcode}: {e}")
             return None
 
     @classmethod
