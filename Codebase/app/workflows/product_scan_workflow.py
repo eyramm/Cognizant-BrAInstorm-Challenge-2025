@@ -25,7 +25,8 @@ class ProductScanWorkflow:
     6. Make recommendations
     """
 
-    def __init__(self, barcode: str, user_lat: Optional[float] = None, user_lon: Optional[float] = None, analyze_ingredients: bool = False):
+    def __init__(self, barcode: str, user_lat: Optional[float] = None, user_lon: Optional[float] = None,
+                 analyze_ingredients: bool = False, get_recommendations: bool = False):
         from flask import current_app
 
         self.barcode = barcode
@@ -37,6 +38,7 @@ class ProductScanWorkflow:
         self.recommendations = []
         self.ingredients_analysis = None
         self.analyze_ingredients = analyze_ingredients
+        self.get_recommendations = get_recommendations
         # Default to configured store location if coordinates not provided
         self.user_lat = user_lat if user_lat is not None else current_app.config['DEFAULT_STORE_LAT']
         self.user_lon = user_lon if user_lon is not None else current_app.config['DEFAULT_STORE_LON']
@@ -83,9 +85,12 @@ class ProductScanWorkflow:
             current_app.logger.info(f"[Workflow] Step 5: Finding similar products")
             self.similar_products = self._find_similar_products()
 
-            # Step 6: Make recommendations
-            current_app.logger.info(f"[Workflow] Step 6: Generating recommendations")
-            self.recommendations = self._make_recommendations()
+            # Step 6: Make recommendations (optional)
+            if self.get_recommendations:
+                current_app.logger.info(f"[Workflow] Step 6: Generating recommendations")
+                self.recommendations = self._make_recommendations()
+            else:
+                self.recommendations = []
 
             # Step 7 (Optional): Analyze ingredients
             if self.analyze_ingredients:
@@ -355,20 +360,39 @@ class ProductScanWorkflow:
         Step 6: Generate recommendations based on sustainability scores
         Returns list of recommended alternatives
         """
-        if not self.similar_products:
+        from ..services.recommendation_service import RecommendationService
+
+        if not self.product_id or not self.product_data:
             return []
 
-        # TODO: Implement actual recommendation logic based on scores
-        # For now, just return similar products as recommendations
-        recommendations = []
-        for product in self.similar_products[:3]:
-            recommendations.append({
-                "product": product,
-                "reason": "Similar product in same category",
-                "sustainability_score": None  # TODO: Add actual scores
-            })
+        # Get current product's recommendation score
+        try:
+            current_scores = RecommendationService.calculate_recommendation_score(
+                self.product_id,
+                user_lat=self.user_lat,
+                user_lon=self.user_lon
+            )
+            current_score = current_scores["recommendation_score"]
+        except Exception as e:
+            current_app.logger.warning(f"[Workflow] Error calculating current product score: {e}")
+            current_score = 0
 
-        return recommendations
+        # Get recommendations using hybrid approach (local DB + OFF API)
+        try:
+            recommendations = asyncio.run(
+                RecommendationService.get_recommendations(
+                    product_id=self.product_id,
+                    category=self.product_data.get('primary_category'),
+                    current_score=current_score,
+                    user_lat=self.user_lat,
+                    user_lon=self.user_lon,
+                    min_count=3
+                )
+            )
+            return recommendations
+        except Exception as e:
+            current_app.logger.exception(f"[Workflow] Error getting recommendations: {e}")
+            return []
 
     def _analyze_ingredients(self) -> Dict[str, Any]:
         """
@@ -391,7 +415,8 @@ def execute_product_scan_workflow(
     barcode: str,
     user_lat: Optional[float] = None,
     user_lon: Optional[float] = None,
-    analyze_ingredients: bool = False
+    analyze_ingredients: bool = False,
+    get_recommendations: bool = False
 ) -> Dict[str, Any]:
     """
     Convenience function to execute the product scan workflow
@@ -401,9 +426,12 @@ def execute_product_scan_workflow(
         user_lat: User/store latitude (optional, defaults to Halifax, NS)
         user_lon: User/store longitude (optional, defaults to Halifax, NS)
         analyze_ingredients: Whether to include ingredient health analysis (optional, defaults to False)
+        get_recommendations: Whether to include product recommendations (optional, defaults to False)
 
     Returns:
         Complete workflow result with product data, scores, and recommendations
     """
-    workflow = ProductScanWorkflow(barcode, user_lat=user_lat, user_lon=user_lon, analyze_ingredients=analyze_ingredients)
+    workflow = ProductScanWorkflow(barcode, user_lat=user_lat, user_lon=user_lon,
+                                  analyze_ingredients=analyze_ingredients,
+                                  get_recommendations=get_recommendations)
     return workflow.execute()

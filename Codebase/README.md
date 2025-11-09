@@ -36,12 +36,13 @@ pip install -r requirements.txt
 - `GET /api/products/<barcode>`
 - `GET /api/products/<barcode>?ingredients=true`
 - `GET /api/products/<barcode>?sustainability_score=true`
-- `GET /api/products/<barcode>?sustainability_score=true&ingredients=true`
-- `GET /api/products/<barcode>?sustainability_score=true&lat=<latitude>&lon=<longitude>`
+- `GET /api/products/<barcode>?recommendations=true`
+- `GET /api/products/<barcode>?sustainability_score=true&ingredients=true&recommendations=true`
 
 **Query Parameters:**
 - `sustainability_score` - `true` to include sustainability metrics
 - `ingredients` - `true` to include ingredient health analysis (good/caution/harmful)
+- `recommendations` - `true` to include better alternative product suggestions
 - `lat` - Latitude for transportation calculations
 - `lon` - Longitude for transportation calculations
 
@@ -54,10 +55,15 @@ pip install -r requirements.txt
   ```bash
   psql -d ecoapp -f migrations/001_add_image_columns.sql
   psql -d ecoapp -f migrations/002_add_ingredient_health_classification.sql
+  psql -d ecoapp -f migrations/003_add_cached_transportation.sql
   ```
 - Seed the ingredient emission factors and health classifications:
   ```bash
   psql -d ecoapp -f app/data/seed_emission_factors.sql
   psql -d ecoapp -f app/data/seed_harmful_ingredients.sql
+  ```
+- Set default transportation scores for existing products:
+  ```bash
+  psql -d ecoapp -c "UPDATE products SET transportation_score = 0 WHERE transportation_score IS NULL;"
   ```
 - Flask automatically loads `.env` because `python-dotenv` is installed; no manual `export` commands needed.

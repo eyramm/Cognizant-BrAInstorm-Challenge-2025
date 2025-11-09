@@ -397,7 +397,29 @@ class ProductStorageService:
             ecoscore_grade = normalize_grade(off_product.get('ecoscore_grade'))
             nutriscore_grade = normalize_grade(off_product.get('nutriscore_grade'))
 
-            # 5. Insert or update product
+            # 6. Pre-calculate transportation data using default location
+            from flask import current_app
+            transportation_data = None
+            try:
+                # Only calculate if we have manufacturing location
+                if off_product.get('manufacturing_places'):
+                    from ..services.scoring_service import ScoringService
+                    # Calculate with default lat/lon from config
+                    default_lat = current_app.config.get('DEFAULT_STORE_LAT')
+                    default_lon = current_app.config.get('DEFAULT_STORE_LON')
+
+                    # This will be calculated once and cached
+                    # Note: We'll save to DB after product is created
+                    transportation_data = {
+                        'needs_calculation': True,
+                        'lat': default_lat,
+                        'lon': default_lon
+                    }
+            except Exception as e:
+                # Don't fail if transportation calculation fails
+                pass
+
+            # 7. Insert or update product
             upc = off_product.get('code')
 
             # Check if product exists

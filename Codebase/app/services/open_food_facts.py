@@ -217,3 +217,56 @@ class OpenFoodFactsService:
             return None
 
         return cls.extract_basic_info(off_product)
+
+    @classmethod
+    async def search_products_by_category(cls, category: str, page_size: int = 10) -> List[Dict[str, Any]]:
+        """
+        Search for products in a specific category using Open Food Facts Search API
+
+        Args:
+            category: Category tag (e.g., 'canned-meats', 'cereals')
+            page_size: Number of results to return (default 10, max 100)
+
+        Returns:
+            List of product data dictionaries
+        """
+        search_url = "https://world.openfoodfacts.org/cgi/search.pl"
+
+        # Build search parameters
+        params = {
+            'action': 'process',
+            'tagtype_0': 'categories',
+            'tag_contains_0': 'contains',
+            'tag_0': category,
+            'sort_by': 'unique_scans_n',  # Sort by popularity
+            'page_size': min(page_size, 100),
+            'json': 1,
+            'fields': ','.join(cls.REQUIRED_FIELDS)
+        }
+
+        try:
+            timeout = cls.get_timeout()
+            async with aiohttp.ClientSession() as session:
+                headers = {'User-Agent': 'EcoApp/1.0 (Product Recommendation System)'}
+                async with session.get(search_url, params=params, headers=headers,
+                                      timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+                    if response.status != 200:
+                        print(f"Search API returned status {response.status}")
+                        return []
+
+                    data = await response.json()
+                    products = data.get('products', [])
+
+                    # Return products (they're already in OFF format)
+                    return products
+
+        except aiohttp.ClientError as e:
+            print(f"Error searching products in category {category}: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+        except Exception as e:
+            print(f"Unexpected error searching products: {e}")
+            import traceback
+            traceback.print_exc()
+            return []

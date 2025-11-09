@@ -58,21 +58,24 @@ def get_product(barcode: str):
                 "message": "Invalid barcode format. Must contain only digits."
             }), 400
 
-        # Check if sustainability score calculation requested
+        # Check which features are requested
         calculate_sustainability = request.args.get('sustainability_score', 'false').lower() == 'true'
         analyze_ingredients = request.args.get('ingredients', 'false').lower() == 'true'
+        get_recommendations = request.args.get('recommendations', 'false').lower() == 'true'
 
-        if calculate_sustainability:
+        # If any workflow features requested, run the full workflow
+        if calculate_sustainability or get_recommendations:
             # Get location parameters (default to Halifax, NS if not provided)
             lat = request.args.get('lat', type=float)
             lon = request.args.get('lon', type=float)
 
-            # Execute complete workflow with scores and recommendations
+            # Execute complete workflow
             result = execute_product_scan_workflow(
                 barcode,
                 user_lat=lat,
                 user_lon=lon,
-                analyze_ingredients=analyze_ingredients
+                analyze_ingredients=analyze_ingredients,
+                get_recommendations=get_recommendations
             )
             return jsonify(result)
         else:

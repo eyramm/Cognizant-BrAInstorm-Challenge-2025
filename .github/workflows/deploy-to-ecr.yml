@@ -47,6 +47,25 @@ jobs:
 
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "Running database migrations..."
+
+          # Install psql client
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+
+          # Run migrations in order
+          psql "$DATABASE_URL" -f Codebase/migrations/001_add_image_columns.sql || echo "Migration 001 already applied or failed"
+          psql "$DATABASE_URL" -f Codebase/migrations/002_add_ingredient_health_classification.sql || echo "Migration 002 already applied or failed"
+          psql "$DATABASE_URL" -f Codebase/migrations/003_add_cached_transportation.sql || echo "Migration 003 already applied or failed"
+
+          # Set default transportation scores for existing products
+          psql "$DATABASE_URL" -c "UPDATE products SET transportation_score = 0 WHERE transportation_score IS NULL;" || echo "Default scores already set"
+
+          echo "Migrations completed"
+
       - name: Update App Runner service
         env:
           SERVICE_ARN: ${{ secrets.APP_RUNNER_SERVICE_ARN }}
