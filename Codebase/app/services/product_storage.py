@@ -5,6 +5,7 @@ Handles saving Open Food Facts product data into our database
 
 from typing import Dict, Any, Optional, List
 import re
+import json
 from datetime import datetime
 
 

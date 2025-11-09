@@ -66,8 +66,11 @@ class ProductScanWorkflow:
                 current_app.logger.info(f"[Workflow] Step 3: Saving to database")
                 self.product_id = self._save_to_database(off_data)
 
-                # Fetch the saved data
+                # Fetch the saved data (try database first, fallback to OFF data)
                 self.product_data = self._check_database()
+                if not self.product_data:
+                    # Fallback: build from OFF data if database query fails
+                    self.product_data = self._build_product_data_from_off(off_data)
                 self.source = "open_food_facts"
             else:
                 self.source = "database"
@@ -166,6 +169,26 @@ class ProductScanWorkflow:
             OpenFoodFactsService.fetch_product(self.barcode)
         )
         return off_product
+
+    def _build_product_data_from_off(self, off_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Build product data dictionary from Open Food Facts data
+        Used as fallback when database query fails after fresh import
+        """
+        return {
+            "id": self.product_id,
+            "upc": off_data.get('code'),
+            "product_name": off_data.get('product_name'),
+            "brand": off_data.get('brands'),
+            "quantity": off_data.get('quantity'),
+            "manufacturing_places": off_data.get('manufacturing_places'),
+            "primary_category": off_data.get('categories', '').split(',')[0].strip() if off_data.get('categories') else None,
+            "nova_group": off_data.get('nova_group'),
+            "ecoscore_grade": off_data.get('ecoscore_grade'),
+            "ecoscore_score": off_data.get('ecoscore_score'),
+            "image_url": off_data.get('image_front_url'),
+            "image_small_url": off_data.get('image_front_small_url')
+        }
 
     def _save_to_database(self, off_data: Dict[str, Any]) -> Optional[int]:
         """
