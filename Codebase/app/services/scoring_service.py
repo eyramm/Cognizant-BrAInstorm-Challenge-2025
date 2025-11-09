@@ -550,34 +550,33 @@ class ScoringService:
             )
             nutriment_row = cursor.fetchone()
 
+        # Return 0 if no nutritional data (API can detect data_available: false)
         if not nutriment_row or nutriment_row[0] is None:
             return {
                 "points": 0,
-                "status": "no_nutritional_data",
-                "message": "No calorie information available",
+                "data_available": False,
                 "confidence": "none",
             }
 
         calories_100g = float(nutriment_row[0])
         protein_100g = float(nutriment_row[1]) if nutriment_row[1] is not None else 0
 
-        # Validate calories (must be positive)
+        # Return 0 if invalid calories
         if calories_100g <= 0:
             return {
                 "points": 0,
-                "status": "invalid_calories",
-                "message": "Invalid calorie data (zero or negative)",
+                "data_available": False,
                 "confidence": "none",
             }
 
         # Get total CO2 from raw materials calculation
         raw_materials_result = cls.calculate_raw_materials_score(product_id)
 
+        # Return 0 if no CO2 data
         if raw_materials_result.get("total_co2_kg") is None:
             return {
                 "points": 0,
-                "status": "no_co2_data",
-                "message": "Cannot calculate efficiency without CO2 data",
+                "data_available": False,
                 "confidence": "none",
             }
 
@@ -601,6 +600,7 @@ class ScoringService:
 
         return {
             "points": score,
+            "data_available": True,
             "co2_per_100_calories": round(climate_efficiency, 4),
             "co2_per_100g_protein": round(protein_efficiency, 4) if protein_efficiency else None,
             "calories_100g": calories_100g,
@@ -608,11 +608,6 @@ class ScoringService:
             "total_co2_kg": total_co2_kg,
             "efficiency_rating": cls._get_efficiency_rating(climate_efficiency),
             "confidence": raw_materials_confidence,
-            "data_quality": {
-                "has_calories": True,
-                "has_protein": protein_100g > 0,
-                "has_co2_data": True,
-            }
         }
 
     @staticmethod

@@ -245,19 +245,26 @@ class ProductScanWorkflow:
                 "confidence": transportation.get("confidence")
             }
 
-        # Only include climate efficiency if implemented
-        if climate_points is not None and climate_efficiency.get("status") not in ["no_nutritional_data", "invalid_calories", "no_co2_data"]:
-            scores["metrics"]["climate_efficiency"] = {
-                "score": climate_points,
+        # Always include climate efficiency (will show data_available status)
+        climate_metric = {
+            "score": climate_points,
+            "data_available": climate_efficiency.get("data_available", False),
+            "confidence": climate_efficiency.get("confidence", "none")
+        }
+
+        # Add detailed metrics only if data is available
+        if climate_efficiency.get("data_available"):
+            climate_metric.update({
                 "co2_per_100_calories": climate_efficiency.get("co2_per_100_calories"),
                 "calories_100g": climate_efficiency.get("calories_100g"),
                 "efficiency_rating": climate_efficiency.get("efficiency_rating"),
-                "confidence": climate_efficiency.get("confidence")
-            }
+            })
             # Optional: include protein efficiency if available
             if climate_efficiency.get("co2_per_100g_protein") is not None:
-                scores["metrics"]["climate_efficiency"]["co2_per_100g_protein"] = climate_efficiency.get("co2_per_100g_protein")
-                scores["metrics"]["climate_efficiency"]["protein_100g"] = climate_efficiency.get("protein_100g")
+                climate_metric["co2_per_100g_protein"] = climate_efficiency.get("co2_per_100g_protein")
+                climate_metric["protein_100g"] = climate_efficiency.get("protein_100g")
+
+        scores["metrics"]["climate_efficiency"] = climate_metric
 
         return scores
 

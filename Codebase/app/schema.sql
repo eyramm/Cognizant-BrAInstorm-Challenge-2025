@@ -144,20 +144,20 @@ CREATE TABLE IF NOT EXISTS countries (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Grid Carbon Intensity (for energy scoring)
-CREATE TABLE IF NOT EXISTS grid_carbon_intensity (
-    id SERIAL PRIMARY KEY,
-    country_code VARCHAR(2) NOT NULL,
-    region VARCHAR(100),
-    grid_name VARCHAR(100),
-    g_co2_per_kwh DECIMAL(10,2) NOT NULL,
-    year INTEGER,
-    data_source VARCHAR(100),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_grid_intensity_country ON grid_carbon_intensity(country_code);
-CREATE INDEX IF NOT EXISTS idx_grid_intensity_region ON grid_carbon_intensity(region);
+-- Grid Carbon Intensity (deprecated - energy source metric removed)
+-- CREATE TABLE IF NOT EXISTS grid_carbon_intensity (
+--     id SERIAL PRIMARY KEY,
+--     country_code VARCHAR(2) NOT NULL,
+--     region VARCHAR(100),
+--     grid_name VARCHAR(100),
+--     g_co2_per_kwh DECIMAL(10,2) NOT NULL,
+--     year INTEGER,
+--     data_source VARCHAR(100),
+--     created_at TIMESTAMPTZ DEFAULT NOW()
+-- );
+--
+-- CREATE INDEX IF NOT EXISTS idx_grid_intensity_country ON grid_carbon_intensity(country_code);
+-- CREATE INDEX IF NOT EXISTS idx_grid_intensity_region ON grid_carbon_intensity(region);
 
 -- Agribalyse Categories (baseline scoring)
 CREATE TABLE IF NOT EXISTS agribalyse_categories (
@@ -359,9 +359,8 @@ CREATE TABLE IF NOT EXISTS sustainability_scores (
     id BIGSERIAL PRIMARY KEY,
     product_id BIGINT UNIQUE REFERENCES products(id) ON DELETE CASCADE,
 
-    -- Component Scores (0-100 each)
+    -- Component Scores (point adjustments)
     raw_materials_score INTEGER,
-    energy_source_score INTEGER,
     transportation_score INTEGER,
     packaging_score INTEGER,
 
