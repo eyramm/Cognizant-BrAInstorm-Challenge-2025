@@ -414,6 +414,8 @@ class ProductStorageService:
                        ecoscore_score = %s,
                        nutriscore_grade = %s,
                        completeness = %s,
+                       image_url = %s,
+                       image_small_url = %s,
                        raw_off_data = %s,
                        updated_at = NOW(),
                        last_updated_at = NOW()
@@ -439,7 +441,9 @@ class ProductStorageService:
                         off_product.get('ecoscore_score'),
                         off_product.get('nutriscore_grade'),
                         off_product.get('completeness'),
-                        None,  # raw_off_data - can add if needed
+                        off_product.get('image_front_url'),
+                        off_product.get('image_front_small_url'),
+                        json.dumps(off_product),  # Store complete OFF data
                         product_id
                     )
                 )
@@ -452,8 +456,8 @@ class ProductStorageService:
                         manufacturing_places, manufacturing_city, manufacturing_region,
                         manufacturing_country, ingredients_text, labels_text, packaging_text,
                         has_palm_oil, ecoscore_grade, ecoscore_score, nutriscore_grade,
-                        completeness, raw_off_data)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        completeness, image_url, image_small_url, raw_off_data)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                        RETURNING id""",
                     (
                         upc,
@@ -477,7 +481,9 @@ class ProductStorageService:
                         off_product.get('ecoscore_score'),
                         off_product.get('nutriscore_grade'),
                         off_product.get('completeness'),
-                        None  # raw_off_data
+                        off_product.get('image_front_url'),
+                        off_product.get('image_front_small_url'),
+                        json.dumps(off_product)  # Store complete OFF data
                     )
                 )
                 product_id = cursor.fetchone()[0]

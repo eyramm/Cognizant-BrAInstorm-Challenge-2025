@@ -22,9 +22,29 @@ set -e\n\
 \n\
 echo "Running database migrations..."\n\
 if [ -n "$DATABASE_URL" ]; then\n\
+  # Run schema\n\
   psql $DATABASE_URL -f app/schema.sql || echo "Schema already exists"\n\
-  psql $DATABASE_URL -f app/data/seed_emission_factors.sql || echo "Emission factors already seeded"\n\
-  psql $DATABASE_URL -f app/data/seed_packaging_materials.sql || echo "Packaging materials already seeded"\n\
+  \n\
+  # Run all migrations in order\n\
+  if [ -d migrations ]; then\n\
+    for migration in migrations/*.sql; do\n\
+      if [ -f "$migration" ]; then\n\
+        echo "Running migration: $migration"\n\
+        psql $DATABASE_URL -f "$migration" || echo "Migration $migration failed or already applied"\n\
+      fi\n\
+    done\n\
+  fi\n\
+  \n\
+  # Run seed data\n\
+  if [ -d app/data ]; then\n\
+    for seed_file in app/data/*.sql; do\n\
+      if [ -f "$seed_file" ]; then\n\
+        echo "Running seed: $seed_file"\n\
+        psql $DATABASE_URL -f "$seed_file" || echo "Seed $seed_file failed or already applied"\n\
+      fi\n\
+    done\n\
+  fi\n\
+  \n\
   echo "Migrations completed"\n\
 else\n\
   echo "WARNING: DATABASE_URL not set, skipping migrations"\n\

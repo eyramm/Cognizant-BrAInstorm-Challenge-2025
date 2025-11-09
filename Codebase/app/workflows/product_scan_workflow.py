@@ -113,7 +113,9 @@ class ProductScanWorkflow:
                 """SELECT p.id, p.upc, p.product_name, m.name as brand,
                           p.quantity, p.manufacturing_places,
                           c.name as primary_category,
-                          p.nova_group, p.ecoscore_grade, p.ecoscore_score
+                          p.nova_group, p.ecoscore_grade, p.ecoscore_score,
+                          p.image_url,
+                          p.image_small_url
                    FROM products p
                    LEFT JOIN manufacturers m ON p.brand_id = m.id
                    LEFT JOIN product_categories pc ON p.id = pc.product_id AND pc.is_primary = TRUE
@@ -135,7 +137,9 @@ class ProductScanWorkflow:
                 "primary_category": result[6],
                 "nova_group": result[7],
                 "ecoscore_grade": result[8],
-                "ecoscore_score": result[9]
+                "ecoscore_score": result[9],
+                "image_url": result[10],
+                "image_small_url": result[11]
             }
 
         return None

@@ -25,27 +25,14 @@ pip install -r requirements.txt
    flask run --reload
    ```
 
-Endpoints:
-- `GET /health`
-- `GET /api/echo?message=hi`
-- `GET /api/db/ping`
-- `GET /api/products/<upc>` – returns brand, product name, primary category, quantity, UPC, and manufacturing location. Example:
+## API Endpoints
 
-```json
-{
-  "status": "success",
-  "source": "database",
-  "data": {
-    "brand": "Sample Foods",
-    "name": "Organic Wheat Crackers",
-    "product_name": "Organic Wheat Crackers",
-    "primary_category": "Crackers",
-    "quantity": "560 g",
-    "upc": "0064100238220",
-    "manufacturing_places": "Mississauga, Ontario"
-  }
-}
-```
+- `GET /health` - Health check
+- `GET /api/echo?message=hi` - Echo test
+- `GET /api/db/ping` - Database connection test
+- `GET /api/products/<barcode>` - Get basic product info (includes images)
+- `GET /api/products/<barcode>?sustainability_score=true` - Get product with sustainability metrics (4 metrics: Raw Materials, Packaging, Transportation, Climate Efficiency)
+  - Optional params: `lat=<latitude>`, `lon=<longitude>` for transportation calculations
 
 ## Database
 

@@ -46,8 +46,8 @@ def get_product(barcode: str):
     6. Make recommendations
 
     Query params:
-        - full=true: Return complete workflow results (scores, recommendations)
-        - full=false (default): Return basic product info only
+        - sustainability_score=true: Return complete workflow results (scores, recommendations)
+        - sustainability_score=false (default): Return basic product info only
         - lat: User/store latitude (optional, defaults to Halifax, NS)
         - lon: User/store longitude (optional, defaults to Halifax, NS)
     """
@@ -58,10 +58,10 @@ def get_product(barcode: str):
                 "message": "Invalid barcode format. Must contain only digits."
             }), 400
 
-        # Check if full workflow requested
-        full_workflow = request.args.get('full', 'false').lower() == 'true'
+        # Check if sustainability score calculation requested
+        calculate_sustainability = request.args.get('sustainability_score', 'false').lower() == 'true'
 
-        if full_workflow:
+        if calculate_sustainability:
             # Get location parameters (default to Halifax, NS if not provided)
             lat = request.args.get('lat', type=float)
             lon = request.args.get('lon', type=float)
@@ -77,7 +77,9 @@ def get_product(barcode: str):
                 cursor.execute(
                     """SELECT p.id, p.upc, p.product_name, m.name as brand,
                               p.quantity, p.manufacturing_places,
-                              c.name as primary_category
+                              c.name as primary_category,
+                              p.image_url,
+                              p.image_small_url
                        FROM products p
                        LEFT JOIN manufacturers m ON p.brand_id = m.id
                        LEFT JOIN product_categories pc ON p.id = pc.product_id AND pc.is_primary = TRUE
@@ -97,7 +99,9 @@ def get_product(barcode: str):
                         "brand": existing_product[3],
                         "quantity": existing_product[4],
                         "manufacturing_places": existing_product[5],
-                        "primary_category": existing_product[6]
+                        "primary_category": existing_product[6],
+                        "image_url": existing_product[7],
+                        "image_small_url": existing_product[8]
                     }
                 })
 
@@ -126,7 +130,9 @@ def get_product(barcode: str):
                     "brand": product_info.get('brand'),
                     "quantity": product_info.get('quantity'),
                     "manufacturing_places": product_info.get('manufacturing_places'),
-                    "primary_category": product_info.get('primary_category')
+                    "primary_category": product_info.get('primary_category'),
+                    "image_url": product_info.get('image_front_url'),
+                    "image_small_url": product_info.get('image_front_small_url')
                 }
             })
 

@@ -216,6 +216,10 @@ CREATE TABLE IF NOT EXISTS products (
     -- Data Quality
     completeness NUMERIC(5,2),
 
+    -- Images
+    image_url TEXT,                          -- Full-size product image
+    image_small_url TEXT,                    -- Thumbnail image (200px)
+
     -- Raw Data Storage
     raw_off_data JSONB,                      -- Full OFF product object
 
