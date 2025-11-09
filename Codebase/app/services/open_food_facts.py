@@ -14,7 +14,7 @@ class OpenFoodFactsService:
     @staticmethod
     def get_base_url() -> str:
         """Get base URL from environment or use default"""
-        return os.getenv('OFF_BASE_URL', 'https://world.openfoodfacts.org/api/v2/product')
+        return os.getenv('OFF_BASE_URL', 'https://world.openfoodfacts.org')
 
     @staticmethod
     def get_timeout() -> int:
@@ -70,7 +70,7 @@ class OpenFoodFactsService:
             Product data dict or None if not found
         """
         base_url = cls.get_base_url()
-        url = f"{base_url}/{barcode}.json"
+        url = f"{base_url}/api/v2/product/{barcode}.json"
         params = {'fields': ','.join(cls.REQUIRED_FIELDS)}
 
         try:
@@ -230,7 +230,8 @@ class OpenFoodFactsService:
         Returns:
             List of product data dictionaries
         """
-        search_url = "https://world.openfoodfacts.org/cgi/search.pl"
+        base_url = cls.get_base_url()
+        search_url = f"{base_url}/cgi/search.pl"
 
         # Build search parameters
         params = {

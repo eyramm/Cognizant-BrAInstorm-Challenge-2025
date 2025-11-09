@@ -49,7 +49,7 @@ pip install -r requirements.txt
 ## Database
 
 - All runtime configuration now lives in `.env`. Update the sample values there (e.g., `DATABASE_URL`).
-- `OFF_BASE_URL` configures which Open Food Facts instance we call (defaults to `https://world.openfoodfacts.org/api/v2/product`); override it in `.env` if you need a different environment.
+- `OFF_BASE_URL` configures which Open Food Facts instance we call (defaults to `https://world.openfoodfacts.org`); override it in `.env` if you need a different environment.
 - Run `flask init-db` whenever the schema changes to keep Postgres in sync before ingesting Open Food Facts data.
 - Run migrations:
   ```bash
