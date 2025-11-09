@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 
 from config import get_config
 
@@ -10,6 +11,9 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(get_config())
     init_db(app)
+
+    # Enable CORS for all routes
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     from .routes import api_bp
 

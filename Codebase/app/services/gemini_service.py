@@ -264,13 +264,20 @@ class GeminiService:
         prompt_parts.extend([
             "",
             "# YOUR TASK",
-            "Provide a concise 3-4 paragraph summary covering:",
-            "1. Overall sustainability assessment (is this a good or bad choice environmentally?)",
-            "2. Key health considerations from ingredients (if any concerns exist)",
-            "3. Recommended alternatives and why they're better",
-            "4. Final recommendation - should the user choose this product or switch?",
+            "Write a concise summary in EXACTLY 2-3 SHORT paragraphs (max 150 words total):",
             "",
-            "Be direct, actionable, and honest. Use simple language. Focus on insights, not just repeating data.",
+            "Paragraph 1: Overall sustainability grade and key environmental concern",
+            "Paragraph 2: Health considerations (only if harmful ingredients exist, otherwise skip)",
+            "Paragraph 3: Best alternative recommendation with specific reason",
+            "",
+            "IMPORTANT RULES:",
+            "- Maximum 150 words total",
+            "- Use bullet points sparingly",
+            "- Be direct and actionable",
+            "- Focus ONLY on the most critical insights",
+            "- Skip any metric that scores neutral (0 points)",
+            "- No introductory phrases like 'This product' or 'Overall'",
+            "- Start immediately with the grade and main issue",
         ])
 
         return "\n".join(prompt_parts)
