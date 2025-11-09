@@ -252,11 +252,12 @@ class OpenFoodFactsService:
         }
 
         try:
-            timeout = cls.get_timeout()
+            # Search API is slower than product API, use longer timeout
+            search_timeout = max(cls.get_timeout(), 30)  # At least 30 seconds
             async with aiohttp.ClientSession() as session:
                 headers = {'User-Agent': 'EcoApp/1.0 (Product Recommendation System)'}
                 async with session.get(search_url, params=params, headers=headers,
-                                      timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+                                      timeout=aiohttp.ClientTimeout(total=search_timeout)) as response:
                     if response.status != 200:
                         print(f"Search API returned status {response.status}")
                         return []
