@@ -1,9 +1,12 @@
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { API_BASE_URL } from '../../config/constants';
+
+const AI_SUMMARIES_KEY = 'aiSummariesEnabled';
 
 const { width } = Dimensions.get('window');
 
@@ -102,8 +105,10 @@ export default function ProductDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tabLoading, setTabLoading] = useState<{[key in TabType]?: boolean}>({});
+  const [aiSummariesEnabled, setAiSummariesEnabled] = useState(true);
 
   useEffect(() => {
+    loadAiSetting();
     fetchProductDetails();
   }, [barcode]);
 
@@ -113,10 +118,21 @@ export default function ProductDetailsScreen() {
       fetchIngredients();
     } else if (activeTab === 'recommendations' && recommendations.length === 0 && !tabLoading.recommendations) {
       fetchRecommendations();
-    } else if (activeTab === 'summary' && !aiSummary && !tabLoading.summary) {
+    } else if (activeTab === 'summary' && !aiSummary && !tabLoading.summary && aiSummariesEnabled) {
       fetchSummary();
     }
   }, [activeTab]);
+
+  const loadAiSetting = async () => {
+    try {
+      const aiEnabled = await AsyncStorage.getItem(AI_SUMMARIES_KEY);
+      if (aiEnabled !== null) {
+        setAiSummariesEnabled(aiEnabled === 'true');
+      }
+    } catch (error) {
+      console.error('Failed to load AI setting:', error);
+    }
+  };
 
   const fetchProductDetails = async () => {
     try {
@@ -502,6 +518,20 @@ export default function ProductDetailsScreen() {
   };
 
   const renderSummaryTab = () => {
+    if (!aiSummariesEnabled) {
+      return (
+        <View style={styles.card}>
+          <View style={styles.aiDisabledContainer}>
+            <MaterialCommunityIcons name="robot-off" size={64} color="#999" />
+            <Text style={styles.aiDisabledTitle}>AI Summaries Disabled</Text>
+            <Text style={styles.aiDisabledText}>
+              Enable AI summaries in Settings to view AI-generated summaries
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
     if (tabLoading.summary) {
       return (
         <View style={styles.tabLoadingContainer}>
@@ -989,6 +1019,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
+  },
+  aiDisabledContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  aiDisabledTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  aiDisabledText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
   },
   ingredientsSummary: {
     flexDirection: 'row',

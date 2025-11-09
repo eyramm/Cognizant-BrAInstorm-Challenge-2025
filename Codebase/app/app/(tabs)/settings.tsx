@@ -1,11 +1,37 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+const AI_SUMMARIES_KEY = 'aiSummariesEnabled';
+
 export default function SettingsScreen() {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [aiSummariesEnabled, setAiSummariesEnabled] = useState(true);
   const [hapticEnabled, setHapticEnabled] = useState(true);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const aiEnabled = await AsyncStorage.getItem(AI_SUMMARIES_KEY);
+      if (aiEnabled !== null) {
+        setAiSummariesEnabled(aiEnabled === 'true');
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
+
+  const handleAiSummariesToggle = async (value: boolean) => {
+    try {
+      setAiSummariesEnabled(value);
+      await AsyncStorage.setItem(AI_SUMMARIES_KEY, value.toString());
+    } catch (error) {
+      console.error('Failed to save AI summaries setting:', error);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -15,33 +41,17 @@ export default function SettingsScreen() {
 
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <MaterialCommunityIcons name="bell" size={24} color="#666" />
+              <MaterialCommunityIcons name="robot" size={24} color="#666" />
               <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Notifications</Text>
-                <Text style={styles.settingDescription}>Receive scan alerts</Text>
+                <Text style={styles.settingLabel}>AI Summaries</Text>
+                <Text style={styles.settingDescription}>Enable AI-generated summaries</Text>
               </View>
             </View>
             <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
+              value={aiSummariesEnabled}
+              onValueChange={handleAiSummariesToggle}
               trackColor={{ false: '#d1d5db', true: '#86efac' }}
-              thumbColor={notificationsEnabled ? '#22c55e' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <MaterialCommunityIcons name="theme-light-dark" size={24} color="#666" />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Dark Mode</Text>
-                <Text style={styles.settingDescription}>Enable dark theme</Text>
-              </View>
-            </View>
-            <Switch
-              value={darkModeEnabled}
-              onValueChange={setDarkModeEnabled}
-              trackColor={{ false: '#d1d5db', true: '#86efac' }}
-              thumbColor={darkModeEnabled ? '#22c55e' : '#f4f3f4'}
+              thumbColor={aiSummariesEnabled ? '#22c55e' : '#f4f3f4'}
             />
           </View>
 
@@ -64,17 +74,6 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Scanner Settings</Text>
-
-          <TouchableOpacity style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <MaterialCommunityIcons name="barcode" size={24} color="#666" />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Barcode Types</Text>
-                <Text style={styles.settingDescription}>Configure supported formats</Text>
-              </View>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#999" />
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
