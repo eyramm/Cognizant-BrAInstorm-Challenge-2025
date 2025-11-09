@@ -28,7 +28,11 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.ecoscanner.app",
-      "permissions": ["CAMERA"],
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
       "usesCleartextTraffic": true
     },
     "web": {
@@ -52,6 +56,9 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "571e5e7d-6a8c-4b77-9587-092a2107c650"
       }
     }
   }
