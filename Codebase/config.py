@@ -22,6 +22,10 @@ class Config:
     )
     OFF_API_TIMEOUT = int(os.getenv("OFF_API_TIMEOUT", "10"))
 
+    # Gemini AI API configuration
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
     # Default store location for transportation calculations (Halifax, NS)
     DEFAULT_STORE_LAT = float(os.getenv("DEFAULT_STORE_LAT", "44.6488"))
     DEFAULT_STORE_LON = float(os.getenv("DEFAULT_STORE_LON", "-63.5752"))

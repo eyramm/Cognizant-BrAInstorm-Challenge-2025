@@ -48,6 +48,8 @@ def get_product(barcode: str):
     Query params:
         - sustainability_score=true: Return complete workflow results (scores, recommendations)
         - ingredients=true: Include ingredient health analysis
+        - recommendations=true: Include product recommendations
+        - summary=true: Generate AI-powered summary (requires sustainability_score=true)
         - lat: User/store latitude (optional, defaults to Halifax, NS)
         - lon: User/store longitude (optional, defaults to Halifax, NS)
     """
@@ -62,6 +64,13 @@ def get_product(barcode: str):
         calculate_sustainability = request.args.get('sustainability_score', 'false').lower() == 'true'
         analyze_ingredients = request.args.get('ingredients', 'false').lower() == 'true'
         get_recommendations = request.args.get('recommendations', 'false').lower() == 'true'
+        generate_summary = request.args.get('summary', 'false').lower() == 'true'
+
+        # Summary requires sustainability scores, recommendations, and ingredients
+        if generate_summary:
+            calculate_sustainability = True
+            get_recommendations = True
+            analyze_ingredients = True
 
         # If any workflow features requested, run the full workflow
         if calculate_sustainability or get_recommendations:
@@ -77,6 +86,27 @@ def get_product(barcode: str):
                 analyze_ingredients=analyze_ingredients,
                 get_recommendations=get_recommendations
             )
+
+            # Generate AI summary if requested
+            if generate_summary and result.get('status') == 'success':
+                from .services.gemini_service import GeminiService
+
+                product_data = result.get('data', {})
+                product_id = product_data.get('product', {}).get('id')
+
+                if product_id:
+                    # Get cached summary or generate new one
+                    summary = GeminiService.get_or_generate_summary(product_id, product_data)
+
+                    if summary:
+                        result['data']['ai_summary'] = summary
+                    else:
+                        result['data']['ai_summary'] = None
+                        current_app.logger.warning("[API] Failed to generate AI summary")
+                else:
+                    result['data']['ai_summary'] = None
+                    current_app.logger.error("[API] No product ID available for summary")
+
             return jsonify(result)
         else:
             # Quick response - just product info
