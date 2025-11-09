@@ -1,9 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Walmart UPC Scraper",
+  "name": "Product Sustainability Info",
   "version": "1.0",
-  "description": "Scrapes UPC from Walmart product pages.",
+  "description": "Shows sustainability information for Walmart products.",
   "permissions": ["activeTab", "scripting"],
+  "host_permissions": [
+    "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

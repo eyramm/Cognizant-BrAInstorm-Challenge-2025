@@ -1,12 +1,83 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Walmart UPC Scraper</title>
+  <title>EcoScore</title>
+  <link rel="stylesheet" href="popup.css">
   <script src="popup.js"></script>
 </head>
 <body>
-  <h1>Walmart UPC Scraper</h1>
-  <button id="scrapeBtn">Scrape UPC</button>
-  <div id="upcResult"></div>
+  <div class="container">
+    <h1>EcoScore</h1>
+
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>Loading product information...</p>
+    </div>
+
+    <div id="error" class="hidden error"></div>
+
+    <div id="content" class="hidden">
+      <!-- Tab Navigation -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="overview">Overview</button>
+        <button class="tab-btn" data-tab="ingredients">Ingredients</button>
+        <button class="tab-btn" data-tab="recommendations">Alternatives</button>
+        <button class="tab-btn" data-tab="summary">Summary</button>
+      </div>
+
+      <!-- Tab 1: Overview (Product Info + Sustainability Score) -->
+      <div id="overview" class="tab-content active">
+        <div class="overview-grid">
+          <!-- Left: Product Info -->
+          <div class="product-info">
+            <img id="productImage" src="" alt="Product" class="product-image">
+            <h2 id="productName"></h2>
+            <p id="productBrand" class="brand"></p>
+            <p id="productQuantity" class="quantity"></p>
+            <p id="productPrice" class="price"></p>
+
+            <!-- Sustainability Score Badge (moved here) -->
+            <div class="score-badge-compact">
+              <div class="score-display">
+                <span id="sustainabilityGrade" class="grade-letter"></span>
+                <span id="sustainabilityScore" class="score-number"></span>
+              </div>
+              <span class="score-label-compact">Sustainability Score</span>
+            </div>
+
+            <div id="ecoscore" class="ecoscore-section hidden">
+              <strong>Ecoscore:</strong>
+              <span id="ecoscoreGrade" class="ecoscore-badge"></span>
+              <span id="ecoscoreScore"></span>
+            </div>
+          </div>
+
+          <!-- Right: Score Breakdown -->
+          <div class="score-breakdown">
+            <h3 class="breakdown-title">Score Breakdown</h3>
+            <div id="metricsContainer"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Ingredients -->
+      <div id="ingredients" class="tab-content">
+        <div id="ingredientsList" class="ingredients-list"></div>
+        <div id="noIngredients" class="no-data hidden">No ingredient data available</div>
+      </div>
+
+      <!-- Tab 3: Recommendations -->
+      <div id="recommendations" class="tab-content">
+        <div id="recommendationsList" class="recommendations-list"></div>
+        <div id="noRecommendations" class="no-data hidden">No alternatives available</div>
+      </div>
+
+      <!-- Tab 4: Summary -->
+      <div id="summary" class="tab-content">
+        <div id="summaryContent" class="summary-content"></div>
+        <div id="noSummary" class="no-data hidden">Generating summary...</div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
