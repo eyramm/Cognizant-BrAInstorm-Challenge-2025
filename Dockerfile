@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy application code
-COPY Codebase/ /app/
+COPY Codebase/api/ /app/
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir --upgrade pip && \
