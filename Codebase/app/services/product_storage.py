@@ -372,6 +372,13 @@ class ProductStorageService:
                         return default
                 return data
 
+            # Helper to normalize grade values (must be single char or None)
+            def normalize_grade(grade_value):
+                if not grade_value or grade_value == 'unknown':
+                    return None
+                # Take first character only
+                return str(grade_value)[0].lower() if grade_value else None
+
             # 1. Get or create manufacturer
             brand_name = off_product.get('brands')
             manufacturer_id = cls.get_or_create_manufacturer(cursor, brand_name)
@@ -385,6 +392,10 @@ class ProductStorageService:
 
             # 4. Check for palm oil
             has_palm_oil = bool(off_product.get('ingredients_from_palm_oil_tags'))
+
+            # 5. Normalize grade values
+            ecoscore_grade = normalize_grade(off_product.get('ecoscore_grade'))
+            nutriscore_grade = normalize_grade(off_product.get('nutriscore_grade'))
 
             # 5. Insert or update product
             upc = off_product.get('code')
@@ -441,9 +452,9 @@ class ProductStorageService:
                         off_product.get('labels'),
                         off_product.get('packaging'),
                         has_palm_oil,
-                        off_product.get('ecoscore_grade'),
+                        ecoscore_grade,
                         off_product.get('ecoscore_score'),
-                        off_product.get('nutriscore_grade'),
+                        nutriscore_grade,
                         off_product.get('completeness'),
                         off_product.get('image_front_url'),
                         off_product.get('image_front_small_url'),
@@ -481,9 +492,9 @@ class ProductStorageService:
                         off_product.get('labels'),
                         off_product.get('packaging'),
                         has_palm_oil,
-                        off_product.get('ecoscore_grade'),
+                        ecoscore_grade,
                         off_product.get('ecoscore_score'),
-                        off_product.get('nutriscore_grade'),
+                        nutriscore_grade,
                         off_product.get('completeness'),
                         off_product.get('image_front_url'),
                         off_product.get('image_front_small_url'),

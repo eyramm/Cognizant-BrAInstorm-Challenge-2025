@@ -27,21 +27,37 @@ pip install -r requirements.txt
 
 ## API Endpoints
 
-- `GET /health` - Health check
-- `GET /api/echo?message=hi` - Echo test
-- `GET /api/db/ping` - Database connection test
-- `GET /api/products/<barcode>` - Get basic product info (includes images)
-- `GET /api/products/<barcode>?sustainability_score=true` - Get product with sustainability metrics (4 metrics: Raw Materials, Packaging, Transportation, Climate Efficiency)
-  - Optional params: `lat=<latitude>`, `lon=<longitude>` for transportation calculations
-  - Optional param: `ingredients=true` to include ingredient health analysis (classifies as good/caution/harmful)
+**Health & Testing**
+- `GET /health`
+- `GET /api/echo?message=<text>`
+- `GET /api/db/ping`
+
+**Products**
+- `GET /api/products/<barcode>`
+- `GET /api/products/<barcode>?ingredients=true`
+- `GET /api/products/<barcode>?sustainability_score=true`
+- `GET /api/products/<barcode>?sustainability_score=true&ingredients=true`
+- `GET /api/products/<barcode>?sustainability_score=true&lat=<latitude>&lon=<longitude>`
+
+**Query Parameters:**
+- `sustainability_score` - `true` to include sustainability metrics
+- `ingredients` - `true` to include ingredient health analysis (good/caution/harmful)
+- `lat` - Latitude for transportation calculations
+- `lon` - Longitude for transportation calculations
 
 ## Database
 
 - All runtime configuration now lives in `.env`. Update the sample values there (e.g., `DATABASE_URL`).
 - `OFF_BASE_URL` configures which Open Food Facts instance we call (defaults to `https://world.openfoodfacts.org/api/v2/product`); override it in `.env` if you need a different environment.
 - Run `flask init-db` whenever the schema changes to keep Postgres in sync before ingesting Open Food Facts data.
-- Seed the ingredient emission factors used by the Raw Materials score:
+- Run migrations:
+  ```bash
+  psql -d ecoapp -f migrations/001_add_image_columns.sql
+  psql -d ecoapp -f migrations/002_add_ingredient_health_classification.sql
+  ```
+- Seed the ingredient emission factors and health classifications:
   ```bash
   psql -d ecoapp -f app/data/seed_emission_factors.sql
+  psql -d ecoapp -f app/data/seed_harmful_ingredients.sql
   ```
 - Flask automatically loads `.env` because `python-dotenv` is installed; no manual `export` commands needed.
