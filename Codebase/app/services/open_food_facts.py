@@ -6,6 +6,7 @@ Handles fetching and parsing product data from Open Food Facts API
 import aiohttp
 import os
 from typing import Optional, Dict, Any, List
+from datetime import datetime
 
 
 class OpenFoodFactsService:
@@ -20,6 +21,11 @@ class OpenFoodFactsService:
     def get_timeout() -> int:
         """Get API timeout from environment or use default"""
         return int(os.getenv('OFF_API_TIMEOUT', '10'))
+
+    @staticmethod
+    def get_prices_base_url() -> str:
+        """Get Prices API base URL from environment or use default"""
+        return os.getenv('OFF_PRICES_BASE_URL', 'https://prices.openfoodfacts.org')
 
     # Fields we need from the API (optimized query)
     REQUIRED_FIELDS = [
@@ -271,3 +277,62 @@ class OpenFoodFactsService:
             import traceback
             traceback.print_exc()
             return []
+
+    @classmethod
+    async def fetch_product_price(cls, barcode: str, currency: str = 'USD') -> Optional[Dict[str, Any]]:
+        """
+        Fetch product price from Open Food Facts Prices API
+
+        Args:
+            barcode: Product UPC/barcode
+            currency: Currency code (default: USD)
+
+        Returns:
+            Dict with price info or None if not found
+            {
+                'price': 3.99,
+                'currency': 'USD',
+                'date': '2025-01-15',
+                'location_name': 'Walmart'
+            }
+        """
+        prices_base_url = cls.get_prices_base_url()
+        url = f"{prices_base_url}/api/v1/prices"
+
+        params = {
+            'product_code': barcode,
+            'currency': currency,
+            'page': 1,
+            'size': 1  # Get only the most recent price
+        }
+
+        try:
+            timeout = cls.get_timeout()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+                    if response.status != 200:
+                        return None
+
+                    data = await response.json()
+
+                    # Check if any prices were found
+                    items = data.get('items', [])
+                    if not items:
+                        return None
+
+                    # Get the most recent price (first item)
+                    price_data = items[0]
+
+                    return {
+                        'price': price_data.get('price'),
+                        'currency': price_data.get('currency'),
+                        'date': price_data.get('date'),
+                        'location_name': price_data.get('location', {}).get('name') if isinstance(price_data.get('location'), dict) else None
+                    }
+
+        except aiohttp.ClientError as e:
+            print(f"Error fetching price for product {barcode}: {e}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error fetching price for product {barcode}: {e}")
+            return None

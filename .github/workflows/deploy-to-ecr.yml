@@ -60,6 +60,7 @@ jobs:
           psql "$DATABASE_URL" -f Codebase/migrations/001_add_image_columns.sql || echo "Migration 001 already applied or failed"
           psql "$DATABASE_URL" -f Codebase/migrations/002_add_ingredient_health_classification.sql || echo "Migration 002 already applied or failed"
           psql "$DATABASE_URL" -f Codebase/migrations/003_add_cached_transportation.sql || echo "Migration 003 already applied or failed"
+          psql "$DATABASE_URL" -f Codebase/migrations/004_add_price_columns.sql || echo "Migration 004 already applied or failed"
 
           # Set default transportation scores for existing products
           psql "$DATABASE_URL" -c "UPDATE products SET transportation_score = 0 WHERE transportation_score IS NULL;" || echo "Default scores already set"

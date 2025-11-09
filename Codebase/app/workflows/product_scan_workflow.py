@@ -136,7 +136,8 @@ class ProductScanWorkflow:
                           c.name as primary_category,
                           p.nova_group, p.ecoscore_grade, p.ecoscore_score,
                           p.image_url,
-                          p.image_small_url
+                          p.image_small_url,
+                          p.price
                    FROM products p
                    LEFT JOIN manufacturers m ON p.brand_id = m.id
                    LEFT JOIN product_categories pc ON p.id = pc.product_id AND pc.is_primary = TRUE
@@ -160,7 +161,8 @@ class ProductScanWorkflow:
                 "ecoscore_grade": result[8],
                 "ecoscore_score": result[9],
                 "image_url": result[10],
-                "image_small_url": result[11]
+                "image_small_url": result[11],
+                "price": float(result[12]) if result[12] is not None else None
             }
 
         return None
@@ -173,6 +175,16 @@ class ProductScanWorkflow:
         off_product = asyncio.run(
             OpenFoodFactsService.fetch_product(self.barcode)
         )
+
+        # Also fetch price data from Prices API
+        if off_product:
+            price_data = asyncio.run(
+                OpenFoodFactsService.fetch_product_price(self.barcode, currency='USD')
+            )
+            # Add price to OFF product data if available
+            if price_data:
+                off_product['price_info'] = price_data
+
         return off_product
 
     def _build_product_data_from_off(self, off_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -180,6 +192,12 @@ class ProductScanWorkflow:
         Build product data dictionary from Open Food Facts data
         Used as fallback when database query fails after fresh import
         """
+        # Extract price if available
+        price = None
+        price_info = off_data.get('price_info')
+        if price_info:
+            price = price_info.get('price')
+
         return {
             "id": self.product_id,
             "upc": off_data.get('code'),
@@ -192,7 +210,8 @@ class ProductScanWorkflow:
             "ecoscore_grade": off_data.get('ecoscore_grade'),
             "ecoscore_score": off_data.get('ecoscore_score'),
             "image_url": off_data.get('image_front_url'),
-            "image_small_url": off_data.get('image_front_small_url')
+            "image_small_url": off_data.get('image_front_small_url'),
+            "price": price
         }
 
     def _save_to_database(self, off_data: Dict[str, Any]) -> Optional[int]:

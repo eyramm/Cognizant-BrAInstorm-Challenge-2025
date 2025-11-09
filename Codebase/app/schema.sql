@@ -220,6 +220,10 @@ CREATE TABLE IF NOT EXISTS products (
     image_url TEXT,                          -- Full-size product image
     image_small_url TEXT,                    -- Thumbnail image (200px)
 
+    -- Price Information
+    price DECIMAL(10,2),                     -- Latest price in USD
+    price_updated_at TIMESTAMPTZ,            -- When price was last updated
+
     -- Raw Data Storage
     raw_off_data JSONB,                      -- Full OFF product object
 

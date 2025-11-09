@@ -426,6 +426,12 @@ class ProductStorageService:
             cursor.execute("SELECT id FROM products WHERE upc = %s", (upc,))
             existing = cursor.fetchone()
 
+            # Extract price if available
+            price = None
+            price_info = off_product.get('price_info')
+            if price_info:
+                price = price_info.get('price')
+
             if existing:
                 # Update existing product
                 product_id = existing[0]
@@ -453,6 +459,8 @@ class ProductStorageService:
                        completeness = %s,
                        image_url = %s,
                        image_small_url = %s,
+                       price = %s,
+                       price_updated_at = %s,
                        raw_off_data = %s,
                        updated_at = NOW(),
                        last_updated_at = NOW()
@@ -480,6 +488,8 @@ class ProductStorageService:
                         off_product.get('completeness'),
                         off_product.get('image_front_url'),
                         off_product.get('image_front_small_url'),
+                        price,
+                        datetime.now() if price is not None else None,
                         json.dumps(off_product),  # Store complete OFF data
                         product_id
                     )
@@ -493,8 +503,8 @@ class ProductStorageService:
                         manufacturing_places, manufacturing_city, manufacturing_region,
                         manufacturing_country, ingredients_text, labels_text, packaging_text,
                         has_palm_oil, ecoscore_grade, ecoscore_score, nutriscore_grade,
-                        completeness, image_url, image_small_url, raw_off_data)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        completeness, image_url, image_small_url, price, price_updated_at, raw_off_data)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                        RETURNING id""",
                     (
                         upc,
@@ -520,6 +530,8 @@ class ProductStorageService:
                         off_product.get('completeness'),
                         off_product.get('image_front_url'),
                         off_product.get('image_front_small_url'),
+                        price,
+                        datetime.now() if price is not None else None,
                         json.dumps(off_product)  # Store complete OFF data
                     )
                 )

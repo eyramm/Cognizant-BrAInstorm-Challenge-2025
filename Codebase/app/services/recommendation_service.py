@@ -34,7 +34,7 @@ class RecommendationService:
         with conn.cursor() as cursor:
             cursor.execute(
                 """SELECT p.id, p.upc, p.product_name, m.name as brand,
-                          c.name as category, p.image_small_url
+                          c.name as category, p.image_small_url, p.price
                    FROM products p
                    LEFT JOIN manufacturers m ON p.brand_id = m.id
                    LEFT JOIN product_categories pc ON p.id = pc.product_id AND pc.is_primary = TRUE
@@ -54,7 +54,8 @@ class RecommendationService:
                 "product_name": row[2],
                 "brand": row[3],
                 "category": row[4],
-                "image_small_url": row[5]
+                "image_small_url": row[5],
+                "price": float(row[6]) if row[6] is not None else None
             })
 
         return similar
@@ -278,7 +279,8 @@ class RecommendationService:
                     "product_name": product["product_name"],
                     "brand": product["brand"],
                     "category": product["category"],
-                    "image_small_url": product["image_small_url"]
+                    "image_small_url": product["image_small_url"],
+                    "price": product.get("price")
                 },
                 "sustainability_score": product["sustainability_score"],
                 "grade": product["grade"],
